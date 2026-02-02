@@ -32,26 +32,26 @@
         "multilanguage"
     ],
     "dependencies": {
-        "axios": "^1.8.2",
-        "body-parser": "^1.20.3",
-        "bootstrap-icons": "^1.11.3",
-        "cors": "^2.8.5",
-        "dotenv": "^16.4.7",
-        "express": "^4.21.2",
+        "axios": "^1.13.4",
+        "body-parser": "^2.2.2",
+        "bootstrap-icons": "^1.13.1",
+        "cors": "^2.8.6",
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
         "fuse.js": "^7.1.0",
-        "mongoose": "^8.12.1",
-        "node": "^23.9.0",
+        "mongoose": "^9.1.5",
+        "node": "^25.5.0",
         "node-fetch": "^3.3.2",
-        "npm": "^11.2.0",
+        "nodemon": "^3.1.11",
+        "npm": "^11.8.0",
         "path": "^0.12.7",
         "swagger-ui-express": "^5.0.1"
     },
     "devDependencies": {
-        "eslint": "^9.22.0",
-        "eslint-config-prettier": "^10.1.1",
-        "eslint-plugin-prettier": "^5.2.3",
-        "nodemon": "^3.1.9",
-        "prettier": "^3.5.3"
+        "eslint": "^9.39.2",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.5",
+        "prettier": "^3.8.1"
     },
     "bugs": {
         "url": "https://github.com/programador-jr/MuscleLibAPI/issues"
