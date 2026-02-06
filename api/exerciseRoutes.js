@@ -124,18 +124,26 @@ router.get("/", async (req, res) => {
   // Filtros dinâmicos
   try {
     // Obter valores únicos do banco de dados para validação
-    const rawForces = await Exercise.distinct('force');
+    const rawForces = await Exercise.distinct("force");
     const rawLevels = await Exercise.distinct("level");
     const rawCategories = await Exercise.distinct("category");
     const rawEquipments = await Exercise.distinct("equipment");
-    const rawPrimaryMuscles = await Exercise.distinct("primaryMuscles");
-    const rawSecondaryMuscles = await Exercise.distinct("secondaryMuscles");
+    const rawPrimaryMuscles = await Exercise.distinct(`primaryMuscles.${lang}`);
+    const rawSecondaryMuscles = await Exercise.distinct(`secondaryMuscles.${lang}`);
 
   // Função para extrair valores e garantir que não retornem 'en'
   const extractValues = (data) => {
     return data
-      .map((item) => (typeof item === "object" ? item[lang] : item)) // Retorna a tradução ou o item original
-      .filter((item) => typeof item === "string" && item !== "en" && item !== "pt"); // Filtra valores inválidos (como 'en' ou 'pt')
+      .flatMap((item) => {
+        if (Array.isArray(item)) {
+          return item;
+        }
+        if (typeof item === "object") {
+          return item[lang];
+        }
+        return item;
+      })
+      .filter((item) => typeof item === "string" && item !== "en" && item !== "pt");
   };
 
   const avaliableForces = extractValues(rawForces);
