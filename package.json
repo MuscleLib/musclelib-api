@@ -6,7 +6,7 @@
     "scripts": {
         "start": "node server/start.js",
         "dev": "nodemon server/start.js",
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "node --test",
         "lint": "eslint .",
         "format": "prettier --write ."
     },
@@ -14,7 +14,7 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/programador-jr/MuscleLibAPI.git"
+        "url": "https://github.com/MuscleLib/musclelib-api.git"
     },
     "keywords": [
         "api",
@@ -36,16 +36,17 @@
         "body-parser": "^2.2.2",
         "bootstrap-icons": "^1.13.1",
         "cors": "^2.8.6",
-        "dotenv": "^17.2.3",
+        "dotenv": "^17.2.4",
         "express": "^5.2.1",
         "fuse.js": "^7.1.0",
-        "mongoose": "^9.1.5",
-        "node": "^25.5.0",
-        "node-fetch": "^3.3.2",
+        "mongoose": "^9.1.6",
         "nodemon": "^3.1.11",
-        "npm": "^11.8.0",
         "path": "^0.12.7",
-        "swagger-ui-express": "^5.0.1"
+        "swagger-ui-express": "^5.0.1",
+        "walk-up-path": "^4.0.0"
+    },
+    "engines": {
+        "node": ">=20 <23"
     },
     "devDependencies": {
         "eslint": "^9.39.2",
@@ -54,7 +55,7 @@
         "prettier": "^3.8.1"
     },
     "bugs": {
-        "url": "https://github.com/programador-jr/MuscleLibAPI/issues"
+        "url": "https://github.com/MuscleLib/musclelib-api/issues"
     },
-    "homepage": "https://github.com/programador-jr/MuscleLibAPI#readme"
+    "homepage": "https://github.com/MuscleLib/musclelib-api"
 }
