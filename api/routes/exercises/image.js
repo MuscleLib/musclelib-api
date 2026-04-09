@@ -3,24 +3,18 @@ const path = require("path");
 
 const Fuse = require("fuse.js");
 const Exercise = require("../../Exercise");
-const { errorMessages } = require("./shared");
+const { errorMessages, getHeaderLanguage, supportedLanguages } = require("./shared");
 
 module.exports = async (req, res) => {
   const { exerciseName, imageIndex } = req.params;
 
-  // Detecta o idioma do usuário a partir do cabeçalho "Accept-Language"
-  const acceptedLanguages = req.headers["accept-language"] || "";
-  const userLang = acceptedLanguages.split(",")[0].split("-")[0];
-
-  // Define o idioma padrão
-  const lang = ["en", "pt"].includes(userLang) ? userLang : "en";
+  const userLang = getHeaderLanguage(req.headers["accept-language"]);
+  const lang = supportedLanguages.includes(userLang) ? userLang : "en";
 
   try {
-    // Procurar o exercício pelo campo 'id' (assumindo que 'exerciseName' corresponde ao campo 'id')
     const exercise = await Exercise.findOne({ id: exerciseName }).lean();
 
     if (!exercise) {
-      // Se não encontrar, usar Fuse.js para sugerir um nome semelhante
       const allExercises = await Exercise.find().lean();
       const fuse = new Fuse(allExercises, {
         keys: ["id"],
@@ -30,12 +24,11 @@ module.exports = async (req, res) => {
       const suggestion = suggestionResult.length > 0 ? suggestionResult[0].item.id : null;
 
       return res.status(400).json({
-        message: errorMessages.invalidValue[lang].replace("{key}", "exerciseName"),
+        message: errorMessages.invalidValue[lang].replace("${key}", "exerciseName"),
         availableOptions: suggestion ? [suggestion] : [errorMessages.noSugestions[lang]],
       });
     }
 
-    // Construir o caminho para a imagem, assumindo que as imagens estão em '../exercises/<exercise.id>/'
     const imagePath = path.join(
       __dirname,
       "../../../exercises",
@@ -43,14 +36,12 @@ module.exports = async (req, res) => {
       `${imageIndex}.jpg`
     );
 
-    // Verificar se o arquivo existe
     if (!fs.existsSync(imagePath)) {
       return res.status(400).json({
         message: errorMessages.notFoundImage[lang],
       });
     }
 
-    // Se existir, enviar o arquivo
     res.sendFile(imagePath);
   } catch (err) {
     console.error(`${errorMessages.fetchError[lang]}: ${err.message}`);

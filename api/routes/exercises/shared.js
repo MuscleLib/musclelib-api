@@ -61,6 +61,9 @@ const errorMessages = {
   },
 };
 
+const supportedLanguages = ["en", "pt"];
+const defaultLanguage = "en";
+
 const validFields = [
   "force",
   "level",
@@ -74,10 +77,122 @@ const validFields = [
   "name",
 ];
 
+const filterableFields = [
+  "primaryMuscles",
+  "secondaryMuscles",
+  "level",
+  "force",
+  "equipment",
+  "category",
+];
+
 const fuseOptions = {
   includeScore: true,
   threshold: 0.4,
   keys: ["name.en", "name.pt"],
+};
+
+const getHeaderLanguage = (acceptLanguage = "") =>
+  acceptLanguage.split(",")[0]?.split("-")[0] || defaultLanguage;
+
+const getErrorLanguage = (requestedLang, acceptLanguage) => {
+  if (supportedLanguages.includes(requestedLang)) {
+    return requestedLang;
+  }
+
+  const headerLanguage = getHeaderLanguage(acceptLanguage);
+  return supportedLanguages.includes(headerLanguage) ? headerLanguage : defaultLanguage;
+};
+
+const parseLanguage = (requestedLang, acceptLanguage) => {
+  const lang = requestedLang || defaultLanguage;
+
+  if (!supportedLanguages.includes(lang)) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          message: errorMessages.invalidLang[getErrorLanguage(lang, acceptLanguage)],
+        },
+      },
+    };
+  }
+
+  return { lang };
+};
+
+const parseFields = (rawFields, lang) => {
+  if (rawFields === undefined) {
+    return { fields: null };
+  }
+
+  if (rawFields === "") {
+    return {
+      error: {
+        status: 400,
+        body: {
+          message: `${errorMessages.invalideParametters[lang]} ${validFields.join(", ")}.`,
+        },
+      },
+    };
+  }
+
+  const fields = rawFields.split(",").map((field) => field.trim());
+  const invalidFields = fields.filter((field) => !validFields.includes(field));
+
+  if (invalidFields.length > 0) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          message: `${errorMessages.invalidFields[lang]} ${validFields.join(", ")}.`,
+          invalidFields,
+        },
+      },
+    };
+  }
+
+  return { fields };
+};
+
+const parsePagination = (pageParam, limitParam, lang) => {
+  if (pageParam === "" || limitParam === "") {
+    return {
+      error: {
+        status: 400,
+        body: {
+          message: errorMessages.invalideParamettersPageLimit[lang],
+        },
+      },
+    };
+  }
+
+  const page = pageParam ? parseInt(pageParam, 10) : 0;
+  const limit = limitParam ? parseInt(limitParam, 10) : 50;
+
+  if (pageParam && (!Number.isInteger(page) || page < 0)) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          message: errorMessages.invalidPage[lang],
+        },
+      },
+    };
+  }
+
+  if (limitParam && (!Number.isInteger(limit) || limit < 1)) {
+    return {
+      error: {
+        status: 400,
+        body: {
+          message: errorMessages.invalidLimit[lang],
+        },
+      },
+    };
+  }
+
+  return { page, limit };
 };
 
 const extractValues = (data, lang) => {
@@ -86,7 +201,7 @@ const extractValues = (data, lang) => {
       if (Array.isArray(item)) {
         return item;
       }
-      if (typeof item === "object") {
+      if (item && typeof item === "object") {
         return item[lang];
       }
       return item;
@@ -94,9 +209,76 @@ const extractValues = (data, lang) => {
     .filter((item) => typeof item === "string" && item !== "en" && item !== "pt");
 };
 
+const localizeValue = (value, lang) => {
+  if (value && typeof value === "object" && !Array.isArray(value) && value[lang] !== undefined) {
+    return value[lang];
+  }
+
+  return value;
+};
+
+const buildImagePaths = (exerciseId) => [
+  `/exercises/${exerciseId}/0.jpg`,
+  `/exercises/${exerciseId}/1.jpg`,
+];
+
+const serializeExercise = (exercise, lang, fields, options = {}) => {
+  const imageFormatter = options.imageFormatter || ((currentExercise) => currentExercise.images);
+
+  if (fields) {
+    const result = {
+      _id: exercise._id,
+      name: localizeValue(exercise.name, lang),
+    };
+
+    fields.forEach((field) => {
+      if (field === "name") {
+        return;
+      }
+
+      if (field === "images") {
+        result.images = imageFormatter(exercise);
+        return;
+      }
+
+      if (exercise[field] !== undefined) {
+        result[field] = localizeValue(exercise[field], lang);
+      }
+    });
+
+    return result;
+  }
+
+  return {
+    ...exercise,
+    _id: exercise._id,
+    name: localizeValue(exercise.name, lang),
+    force: localizeValue(exercise.force, lang),
+    level: localizeValue(exercise.level, lang),
+    mechanic: localizeValue(exercise.mechanic, lang),
+    equipment: localizeValue(exercise.equipment, lang),
+    primaryMuscles: localizeValue(exercise.primaryMuscles, lang),
+    secondaryMuscles: localizeValue(exercise.secondaryMuscles, lang),
+    instructions: localizeValue(exercise.instructions, lang),
+    category: localizeValue(exercise.category, lang),
+    images: imageFormatter(exercise),
+    id: exercise.id,
+  };
+};
+
 module.exports = {
+  buildImagePaths,
+  defaultLanguage,
   errorMessages,
-  validFields,
-  fuseOptions,
   extractValues,
+  filterableFields,
+  fuseOptions,
+  getErrorLanguage,
+  getHeaderLanguage,
+  parseFields,
+  parseLanguage,
+  parsePagination,
+  serializeExercise,
+  supportedLanguages,
+  validFields,
 };
