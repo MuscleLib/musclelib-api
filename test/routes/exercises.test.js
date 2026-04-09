@@ -4,7 +4,7 @@ const request = require("supertest");
 const fs = require("fs");
 const Exercise = require("../../api/Exercise");
 const exerciseRoutes = require("../../api/exerciseRoutes");
-const { buildExercise } = require("../fixtures/exercises.fixture");
+const { buildExercise, exercisesFixture } = require("../fixtures/exercises.fixture");
 
 const createFindStub = (exercise) => ({
   skip() {
@@ -76,6 +76,34 @@ describe("exercise routes", () => {
     Exercise.findOne = () => createFindOneStub(exercise);
     Exercise.find = () => createFindStub(exercise);
   };
+
+  it("returns 400 for an invalid language in list endpoint", async () => {
+    const response = await request(app).get("/api/exercises?lang=es");
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid language. Use 'en' or 'pt'.");
+  });
+
+  it("returns 400 for empty fields in list endpoint", async () => {
+    seedStubs();
+    const response = await request(app).get("/api/exercises?fields=");
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("The field(s) parameter(s) cannot be empty.");
+  });
+
+  it("returns 400 for invalid fields in list endpoint", async () => {
+    seedStubs();
+    const response = await request(app).get("/api/exercises?fields=equipment,unknown");
+    expect(response.status).toBe(400);
+    expect(response.body.invalidFields).toEqual(["unknown"]);
+  });
+
+  it("returns 400 for invalid page values", async () => {
+    const response = await request(app).get("/api/exercises?page=-1");
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "parameter 'page' is invalid. use a value greater than or equal to 0."
+    );
+  });
 
   it("filters by force", async () => {
     seedStubs();
@@ -151,5 +179,18 @@ describe("exercise routes", () => {
     expect(response.body.message).toBe(
       "image not found in the database, check the name and try again"
     );
+  });
+
+  it("returns a suggested exercise id when the image exercise is not found", async () => {
+    Exercise.findOne = () => createFindOneStub(null);
+    Exercise.find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(exercisesFixture),
+    }));
+
+    const response = await request(app).get("/api/exercises/1/0.jpg");
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("exerciseName");
+    expect(response.body.availableOptions).toEqual(["1"]);
   });
 });

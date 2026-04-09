@@ -35,7 +35,40 @@ describe("exercise search route", () => {
       _id: "1",
       name: "Supino Reto",
       equipment: "Barra",
-      category: "ForÃ§a",
+      category: "Força",
+    });
+  });
+
+  it("returns 400 for an invalid language", async () => {
+    const response = await request(app).get("/api/exercises/search?query=Bench&lang=es");
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid language. Use 'en' or 'pt'.");
+  });
+
+  it("returns 400 for invalid fields", async () => {
+    const response = await request(app).get(
+      "/api/exercises/search?query=Bench&fields=equipment,unknown"
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.invalidFields).toEqual(["unknown"]);
+  });
+
+  it("returns generated image urls when images are requested", async () => {
+    Exercise.find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(exercisesFixture),
+    }));
+
+    const response = await request(app).get(
+      "/api/exercises/search?query=Bench&fields=images"
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.exercises[0]).toEqual({
+      _id: "1",
+      name: "Bench Press",
+      images: ["/exercises/1/0.jpg", "/exercises/1/1.jpg"],
     });
   });
 
