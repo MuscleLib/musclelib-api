@@ -1,13 +1,10 @@
-const assert = require("assert/strict");
-const { describe, it } = require("node:test");
-
-const Exercise = require("../api/Exercise");
+const Exercise = require("../../api/Exercise");
 
 const getPath = (path) => Exercise.schema.path(path);
 
 describe("Exercise model schema", () => {
   it("exposes expected model name", () => {
-    assert.equal(Exercise.modelName, "Exercise");
+    expect(Exercise.modelName).toBe("Exercise");
   });
 
   it("defines required localized string fields", () => {
@@ -28,9 +25,9 @@ describe("Exercise model schema", () => {
 
     for (const path of requiredStringPaths) {
       const schemaPath = getPath(path);
-      assert.ok(schemaPath, `${path} is missing from schema`);
-      assert.equal(schemaPath.instance, "String");
-      assert.equal(schemaPath.options.required, true);
+      expect(schemaPath).toBeTruthy();
+      expect(schemaPath.instance).toBe("String");
+      expect(schemaPath.options.required).toBe(true);
     }
   });
 
@@ -46,28 +43,28 @@ describe("Exercise model schema", () => {
 
     for (const path of requiredArrayPaths) {
       const schemaPath = getPath(path);
-      assert.ok(schemaPath, `${path} is missing from schema`);
-      assert.equal(schemaPath.instance, "Array");
-      assert.ok(Array.isArray(schemaPath.options.type));
-      assert.equal(schemaPath.options.type[0], String);
-      assert.equal(schemaPath.options.required, true);
+      expect(schemaPath).toBeTruthy();
+      expect(schemaPath.instance).toBe("Array");
+      expect(Array.isArray(schemaPath.options.type)).toBe(true);
+      expect(schemaPath.options.type[0]).toBe(String);
+      expect(schemaPath.options.required).toBe(true);
     }
   });
 
   it("defines images as required string array", () => {
     const schemaPath = getPath("images");
-    assert.ok(schemaPath);
-    assert.equal(schemaPath.instance, "Array");
-    assert.ok(Array.isArray(schemaPath.options.type));
-    assert.equal(schemaPath.options.type[0], String);
-    assert.equal(schemaPath.options.required, true);
+    expect(schemaPath).toBeTruthy();
+    expect(schemaPath.instance).toBe("Array");
+    expect(Array.isArray(schemaPath.options.type)).toBe(true);
+    expect(schemaPath.options.type[0]).toBe(String);
+    expect(schemaPath.options.required).toBe(true);
   });
 
   it("defines id as required unique string", () => {
     const schemaPath = getPath("id");
-    assert.ok(schemaPath);
-    assert.equal(schemaPath.instance, "String");
-    assert.equal(schemaPath.options.required, true);
-    assert.equal(schemaPath.options.unique, true);
+    expect(schemaPath).toBeTruthy();
+    expect(schemaPath.instance).toBe("String");
+    expect(schemaPath.options.required).toBe(true);
+    expect(schemaPath.options.unique).toBe(true);
   });
 });
