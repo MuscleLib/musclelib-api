@@ -218,8 +218,8 @@ const localizeValue = (value, lang) => {
 };
 
 const buildImagePaths = (exerciseId) => [
-  `/exercises/${exerciseId}/0.jpg`,
-  `/exercises/${exerciseId}/1.jpg`,
+  `/${exerciseId}/0.jpg`,
+  `/${exerciseId}/1.jpg`,
 ];
 
 const serializeExercise = (exercise, lang, fields, options = {}) => {
