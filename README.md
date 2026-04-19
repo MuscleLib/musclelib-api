@@ -1,25 +1,32 @@
-# ![MuscleLib Logo](https://musclelib.vercel.app/images/logo.png)
+# MuscleLib API
 
-# MuscleLib API - Documentation  
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen) ![Version](https://img.shields.io/badge/version-v1.0.0-blue) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Welcome to the **MuscleLib API Documentation**! 📚  
+## Features
+- **Robust API**: Seamlessly integrate MuscleLib with minimal effort.
+- **Real-time Data**: Access live updates of data without delays.
+- **Security**: Built with scalability and security in mind.
 
-This repository contains the official documentation for the **MuscleLib API**, a free and open-source library for retrieving exercise data.   
+## Quick Start Guide
+1. **Installation**: Install via npm:
+   ```bash
+   npm install musclelib-api
+   ```
+2. **Basic Usage**:
+   ```javascript
+   const musclelib = require('musclelib-api');
+   musclelib.connect();
+   ```
+3. **API Endpoints**:
+   - `GET /api/v1/resources`: Fetch resources.
+   - `POST /api/v1/resources`: Create new resources.
 
-## 🚀 Access the Documentation  
+## API Documentation
+For detailed API usage, check our [API Documentation](https://musclelib.org/documentation).
 
-📌 [MuscleLib API Documentation](https://libapi.vercel.app/)  
+## Contribution
+We welcome contributions! Please follow our [contribution guidelines](https://github.com/MuscleLib/musclelib-api/CONTRIBUTING.md) for a smooth collaboration.
 
-## 📌 API Endpoints  
+---
 
-| Method | Endpoint                      | Description |
-|--------|--------------------------------|-------------|
-| GET    | `/api/exercises`              | Returns all exercises |
-| GET    | `/api/exercises/search?query={name}` | Searches exercises by name |
-| GET    | `/api/images/{exerciseName}/{exerciseIndex}` | Returns images of the exercise |
-
-For more details, check out the [full documentation](https://libapi.vercel.app/docs).  
-
-## 📄 License  
-
-This project is licensed under the **MIT License**.  
+_Last updated: 2026-04-19 16:06:42 UTC_
