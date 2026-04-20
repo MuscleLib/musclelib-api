@@ -1,6 +1,6 @@
 # MuscleLib API
 
-![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg) ![Version](https://img.shields.io/badge/version-1.1.3-orange.svg) ![Node.js](https://img.shields.io/badge/node.js-%3E%3D20%20%3C23-green.svg) ![MongoDB](https://img.shields.io/badge/database-MongoDB-success.svg)
+![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg) ![Version](https://img.shields.io/badge/version-2.0.1-orange.svg) ![Node.js](https://img.shields.io/badge/node.js-%3E%3D20%20%3C23-green.svg) ![MongoDB](https://img.shields.io/badge/database-MongoDB-success.svg)
 
 ## About
 
