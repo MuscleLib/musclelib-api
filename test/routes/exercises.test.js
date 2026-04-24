@@ -187,10 +187,10 @@ describe("exercise routes", () => {
       lean: jest.fn().mockResolvedValue(exercisesFixture),
     }));
 
-    const response = await request(app).get("/api/exercises/1/0.jpg");
+    const response = await request(app).get("/api/exercises/barbell_not_found/0.jpg");
 
     expect(response.status).toBe(400);
     expect(response.body.message).toContain("exerciseName");
-    expect(response.body.availableOptions).toEqual(["1"]);
+    expect(response.body.availableOptions).toEqual(["Barbell_Rollout_from_Bench"]);
   });
 });
