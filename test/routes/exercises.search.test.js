@@ -68,7 +68,7 @@ describe("exercise search route", () => {
     expect(response.body.exercises[0]).toEqual({
       _id: "1",
       name: "Bench Press",
-      images: ["/1/0.jpg", "/1/1.jpg"],
+      images: ["Bench_Press/0.jpg", "Bench_Press/1.jpg"],
     });
   });
 

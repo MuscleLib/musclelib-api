@@ -21,7 +21,7 @@ const buildExercise = (overrides = {}) => ({
 const exercisesFixture = [
   {
     _id: "1",
-    id: "1",
+    id: "Bench_Press",
     name: { en: "Bench Press", pt: "Supino Reto" },
     force: { en: "Push", pt: "Empurrar" },
     level: { en: "Intermediate", pt: "Intermediário" },
@@ -31,10 +31,11 @@ const exercisesFixture = [
     secondaryMuscles: { en: ["Triceps"], pt: ["Tríceps"] },
     instructions: { en: ["Lie down..."], pt: ["Deite-se..."] },
     category: { en: "Strength", pt: "Força" },
+    images: ["Bench_Press/0.jpg", "Bench_Press/1.jpg"],
   },
   {
     _id: "2",
-    id: "2",
+    id: "Squat",
     name: { en: "Squat", pt: null },
     force: { en: "Push", pt: null },
     level: { en: "Beginner", pt: null },
@@ -44,6 +45,21 @@ const exercisesFixture = [
     secondaryMuscles: { en: ["Glutes"], pt: null },
     instructions: { en: ["Stand..."], pt: null },
     category: { en: "Strength", pt: null },
+    images: ["Squat/0.jpg", "Squat/1.jpg"],
+  },
+  {
+    _id: "3",
+    id: "Barbell_Rollout_from_Bench",
+    name: { en: "Barbell Rollout from Bench", pt: null },
+    force: { en: "Push", pt: null },
+    level: { en: "Intermediate", pt: null },
+    mechanic: { en: "Compound", pt: null },
+    equipment: { en: "Barbell", pt: null },
+    primaryMuscles: { en: ["Legs"], pt: null },
+    secondaryMuscles: { en: ["Glutes"], pt: null },
+    instructions: { en: ["Stand..."], pt: null },
+    category: { en: "Strength", pt: null },
+    images: ["Barbell_Rollout_from_Bench/0.jpg", "Barbell_Rollout_from_Bench/1.jpg"],
   },
 ];
 
