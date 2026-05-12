@@ -63,6 +63,8 @@ const errorMessages = {
 
 const supportedLanguages = ["en", "pt"];
 const defaultLanguage = "en";
+const defaultPage = 0;
+const defaultLimit = 50;
 
 const validFields = [
   "force",
@@ -76,6 +78,7 @@ const validFields = [
   "images",
   "name",
 ];
+const validFieldSet = new Set(validFields);
 
 const filterableFields = [
   "primaryMuscles",
@@ -86,36 +89,57 @@ const filterableFields = [
   "category",
 ];
 
+const languageSet = new Set(supportedLanguages);
+const excludedExtractedValues = new Set(supportedLanguages);
+const localizedExerciseFields = [
+  "name",
+  "force",
+  "level",
+  "mechanic",
+  "equipment",
+  "primaryMuscles",
+  "secondaryMuscles",
+  "instructions",
+  "category",
+];
+
 const fuseOptions = {
   includeScore: true,
   threshold: 0.4,
   keys: ["name.en", "name.pt"],
 };
 
+const defaultImageFormatter = (exercise) => exercise.images;
+const formatValidFields = () => `${validFields.join(", ")}.`;
+const validationError = (message, extraBody = {}) => ({
+  error: {
+    status: 400,
+    body: {
+      message,
+      ...extraBody,
+    },
+  },
+});
+
 const getHeaderLanguage = (acceptLanguage = "") =>
   acceptLanguage.split(",")[0]?.split("-")[0] || defaultLanguage;
 
 const getErrorLanguage = (requestedLang, acceptLanguage) => {
-  if (supportedLanguages.includes(requestedLang)) {
+  if (languageSet.has(requestedLang)) {
     return requestedLang;
   }
 
   const headerLanguage = getHeaderLanguage(acceptLanguage);
-  return supportedLanguages.includes(headerLanguage) ? headerLanguage : defaultLanguage;
+  return languageSet.has(headerLanguage) ? headerLanguage : defaultLanguage;
 };
 
 const parseLanguage = (requestedLang, acceptLanguage) => {
   const lang = requestedLang || defaultLanguage;
 
-  if (!supportedLanguages.includes(lang)) {
-    return {
-      error: {
-        status: 400,
-        body: {
-          message: errorMessages.invalidLang[getErrorLanguage(lang, acceptLanguage)],
-        },
-      },
-    };
+  if (!languageSet.has(lang)) {
+    return validationError(
+      errorMessages.invalidLang[getErrorLanguage(lang, acceptLanguage)],
+    );
   }
 
   return { lang };
@@ -127,29 +151,21 @@ const parseFields = (rawFields, lang) => {
   }
 
   if (rawFields === "") {
-    return {
-      error: {
-        status: 400,
-        body: {
-          message: `${errorMessages.invalideParametters[lang]} ${validFields.join(", ")}.`,
-        },
-      },
-    };
+    return validationError(
+      `${errorMessages.invalideParametters[lang]} ${formatValidFields()}`,
+    );
   }
 
   const fields = rawFields.split(",").map((field) => field.trim());
-  const invalidFields = fields.filter((field) => !validFields.includes(field));
+  const invalidFields = fields.filter((field) => !validFieldSet.has(field));
 
   if (invalidFields.length > 0) {
-    return {
-      error: {
-        status: 400,
-        body: {
-          message: `${errorMessages.invalidFields[lang]} ${validFields.join(", ")}.`,
-          invalidFields,
-        },
+    return validationError(
+      `${errorMessages.invalidFields[lang]} ${formatValidFields()}`,
+      {
+        invalidFields,
       },
-    };
+    );
   }
 
   return { fields };
@@ -157,39 +173,18 @@ const parseFields = (rawFields, lang) => {
 
 const parsePagination = (pageParam, limitParam, lang) => {
   if (pageParam === "" || limitParam === "") {
-    return {
-      error: {
-        status: 400,
-        body: {
-          message: errorMessages.invalideParamettersPageLimit[lang],
-        },
-      },
-    };
+    return validationError(errorMessages.invalideParamettersPageLimit[lang]);
   }
 
-  const page = pageParam ? parseInt(pageParam, 10) : 0;
-  const limit = limitParam ? parseInt(limitParam, 10) : 50;
+  const page = pageParam ? Number.parseInt(pageParam, 10) : defaultPage;
+  const limit = limitParam ? Number.parseInt(limitParam, 10) : defaultLimit;
 
   if (pageParam && (!Number.isInteger(page) || page < 0)) {
-    return {
-      error: {
-        status: 400,
-        body: {
-          message: errorMessages.invalidPage[lang],
-        },
-      },
-    };
+    return validationError(errorMessages.invalidPage[lang]);
   }
 
   if (limitParam && (!Number.isInteger(limit) || limit < 1)) {
-    return {
-      error: {
-        status: 400,
-        body: {
-          message: errorMessages.invalidLimit[lang],
-        },
-      },
-    };
+    return validationError(errorMessages.invalidLimit[lang]);
   }
 
   return { page, limit };
@@ -206,11 +201,18 @@ const extractValues = (data, lang) => {
       }
       return item;
     })
-    .filter((item) => typeof item === "string" && item !== "en" && item !== "pt");
+    .filter(
+      (item) => typeof item === "string" && !excludedExtractedValues.has(item),
+    );
 };
 
 const localizeValue = (value, lang) => {
-  if (value && typeof value === "object" && !Array.isArray(value) && value[lang] !== undefined) {
+  if (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    value[lang] !== undefined
+  ) {
     return value[lang];
   }
 
@@ -222,48 +224,52 @@ const buildImagePaths = (exerciseId) => [
   `${exerciseId}/1.jpg`,
 ];
 
-const serializeExercise = (exercise, lang, fields, options = {}) => {
-  const imageFormatter = options.imageFormatter || ((currentExercise) => currentExercise.images);
-
-  if (fields) {
-    const result = {
-      _id: exercise._id,
-      name: localizeValue(exercise.name, lang),
-    };
-
-    fields.forEach((field) => {
-      if (field === "name") {
-        return;
-      }
-
-      if (field === "images") {
-        result.images = imageFormatter(exercise);
-        return;
-      }
-
-      if (exercise[field] !== undefined) {
-        result[field] = localizeValue(exercise[field], lang);
-      }
-    });
-
-    return result;
+const setSerializedField = (result, exercise, field, lang, imageFormatter) => {
+  if (field === "name") {
+    return;
   }
 
-  return {
-    ...exercise,
+  if (field === "images") {
+    result.images = imageFormatter(exercise);
+    return;
+  }
+
+  if (exercise[field] !== undefined) {
+    result[field] = localizeValue(exercise[field], lang);
+  }
+};
+
+const serializeSelectedFields = (exercise, lang, fields, imageFormatter) => {
+  const result = {
     _id: exercise._id,
     name: localizeValue(exercise.name, lang),
-    force: localizeValue(exercise.force, lang),
-    level: localizeValue(exercise.level, lang),
-    mechanic: localizeValue(exercise.mechanic, lang),
-    equipment: localizeValue(exercise.equipment, lang),
-    primaryMuscles: localizeValue(exercise.primaryMuscles, lang),
-    secondaryMuscles: localizeValue(exercise.secondaryMuscles, lang),
-    instructions: localizeValue(exercise.instructions, lang),
-    category: localizeValue(exercise.category, lang),
+  };
+
+  fields.forEach((field) =>
+    setSerializedField(result, exercise, field, lang, imageFormatter),
+  );
+  return result;
+};
+
+const serializeExercise = (exercise, lang, fields, options = {}) => {
+  const imageFormatter = options.imageFormatter || defaultImageFormatter;
+
+  if (fields) {
+    return serializeSelectedFields(exercise, lang, fields, imageFormatter);
+  }
+
+  const serializedExercise = {
+    ...exercise,
+    _id: exercise._id,
     images: imageFormatter(exercise),
     id: exercise.id,
   };
+
+  localizedExerciseFields.forEach((field) => {
+    serializedExercise[field] = localizeValue(exercise[field], lang);
+  });
+
+  return serializedExercise;
 };
 
 module.exports = {
