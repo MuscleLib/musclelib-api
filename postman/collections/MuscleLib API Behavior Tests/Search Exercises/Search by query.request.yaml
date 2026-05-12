@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises/search?query={{searchQueryEn}}"
+method: GET
+queryParams:
+  query: "{{searchQueryEn}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('returns matching exercises', () => {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('exercises').that.is.an('array').that.is.not.empty;
+        pm.expect(body.exercises[0].name).to.be.a('string');
+      });
+    language: text/javascript
+order: 1000

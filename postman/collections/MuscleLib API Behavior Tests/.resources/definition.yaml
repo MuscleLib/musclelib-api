@@ -1,0 +1,13 @@
+$kind: collection
+description: Regression suite for the public MuscleLib exercise endpoints. These requests validate language handling, field selection, pagination validation, search behavior, and image responses.
+variables:
+  baseUrl: http://localhost:3000
+  langEn: en
+  langPt: pt
+  searchQueryEn: Bench
+  searchQueryPt: Bench
+  missingTranslationSearchQuery: Squat
+  primaryMuscleEn: chest
+  imageExerciseId: 3_4_Sit-Up
+  imageIndex: "0"
+  unknownExerciseId: barbell_not_found

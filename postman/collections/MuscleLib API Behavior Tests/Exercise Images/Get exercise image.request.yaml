@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises/{{imageExerciseId}}/{{imageIndex}}.jpg"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('content type is an image', () => {
+        pm.expect(pm.response.headers.get('Content-Type')).to.match(/^image\//);
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,24 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises/search?query={{missingTranslationSearchQuery}}&lang={{langPt}}"
+method: GET
+queryParams:
+  query: "{{missingTranslationSearchQuery}}"
+  lang: "{{langPt}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('returns either translated exercises or no-translation guidance', () => {
+        const body = pm.response.json();
+        if (body.exercises) {
+          pm.expect(body.exercises).to.be.an('array').that.is.not.empty;
+          pm.expect(body.exercises[0].name).to.be.a('string');
+        } else {
+          pm.expect(body.message).to.include('Exercício não disponível no idioma selecionado. Tente:');
+        }
+      });
+    language: text/javascript
+order: 5000

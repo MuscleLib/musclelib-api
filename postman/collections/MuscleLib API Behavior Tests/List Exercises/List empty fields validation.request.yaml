@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises?fields="
+method: GET
+queryParams:
+  fields: ""
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('message includes valid fields', () => {
+        const message = pm.response.json().message;
+        pm.expect(message).to.include('The field(s) parameter(s) cannot be empty.');
+        ['force', 'level', 'mechanic', 'equipment', 'primaryMuscles', 'secondaryMuscles', 'instructions', 'category', 'images', 'name'].forEach((field) => {
+          pm.expect(message).to.include(field);
+        });
+      });
+    language: text/javascript
+order: 4000

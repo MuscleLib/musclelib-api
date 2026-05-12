@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises?limit=5"
+method: GET
+queryParams:
+  limit: "5"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      const exercises = pm.response.json();
+
+      pm.test('response is an exercise array', () => {
+        pm.expect(exercises).to.be.an('array').that.is.not.empty;
+      });
+
+      pm.test('exercise shape is localized', () => {
+        const exercise = exercises[0];
+        pm.expect(exercise).to.have.property('id');
+        pm.expect(exercise).to.have.property('name').that.is.a('string');
+        pm.expect(exercise).to.have.property('images').that.is.an('array');
+      });
+    language: text/javascript
+order: 1000

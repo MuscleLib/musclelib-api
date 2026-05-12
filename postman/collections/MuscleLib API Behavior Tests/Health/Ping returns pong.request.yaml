@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/ping"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('body is pong', () => {
+        pm.expect(pm.response.text()).to.eql('pong');
+      });
+    language: text/javascript
+order: 1000
