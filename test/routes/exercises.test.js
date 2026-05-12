@@ -155,6 +155,21 @@ describe("exercise routes", () => {
     expect(response.body.avaliableOptions).toContain("chest");
   });
 
+  it("returns localized filter options without listing exercises", async () => {
+    seedStubs();
+    const response = await request(app).get("/api/exercises/filters?lang=pt");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      force: ["empurrar"],
+      level: ["avancado"],
+      category: ["forca"],
+      equipment: ["kettlebells"],
+      primaryMuscles: ["peito"],
+      secondaryMuscles: ["ombros", "triceps"],
+    });
+  });
+
   it("searches exercises by query", async () => {
     seedStubs();
     const response = await request(app).get("/api/exercises/search?query=Plyo");

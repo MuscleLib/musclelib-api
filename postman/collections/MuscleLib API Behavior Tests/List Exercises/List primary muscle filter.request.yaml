@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises?primaryMuscles={{primaryMuscleEn}}&limit=5"
+method: GET
+queryParams:
+  primaryMuscles: "{{primaryMuscleEn}}"
+  limit: "5"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('all returned exercises include requested primary muscle', () => {
+        const requestedMuscle = pm.variables.get('primaryMuscleEn');
+        pm.response.json().forEach((exercise) => {
+          pm.expect(exercise.primaryMuscles).to.include(requestedMuscle);
+        });
+      });
+    language: text/javascript
+order: 8000

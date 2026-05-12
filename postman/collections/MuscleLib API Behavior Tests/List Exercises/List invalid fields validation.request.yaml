@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises?fields=equipment,unknown"
+method: GET
+queryParams:
+  fields: equipment,unknown
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('invalid fields are returned', () => {
+        pm.expect(pm.response.json().invalidFields).to.eql(['unknown']);
+      });
+    language: text/javascript
+order: 5000

@@ -1,0 +1,22 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises/search?query={{searchQueryEn}}&fields=images"
+method: GET
+queryParams:
+  query: "{{searchQueryEn}}"
+  fields: images
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('selected image response is stable', () => {
+        const exercise = pm.response.json().exercises[0];
+        pm.expect(Object.keys(exercise).sort()).to.eql(['_id', 'images', 'name']);
+        pm.expect(exercise.images).to.be.an('array').with.lengthOf(2);
+        pm.expect(exercise.images[0]).to.match(/\/0\.jpg$/);
+        pm.expect(exercise.images[1]).to.match(/\/1\.jpg$/);
+      });
+    language: text/javascript
+order: 2000

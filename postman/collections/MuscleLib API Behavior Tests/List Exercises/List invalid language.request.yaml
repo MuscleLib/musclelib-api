@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises?lang=es"
+method: GET
+headers:
+  Accept-Language: pt-BR,pt;q=0.9,en;q=0.8
+queryParams:
+  lang: es
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('uses accept-language for error message', () => {
+        pm.expect(pm.response.json().message).to.eql("Idioma inválido. Use 'en' ou 'pt'.");
+      });
+    language: text/javascript
+order: 3000

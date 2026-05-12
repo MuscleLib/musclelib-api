@@ -1,0 +1,19 @@
+# Use this workspace to collaborate
+workspace:
+  id: 90020754-f9d1-4e78-a342-742a5b70bed9
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  environments:
+    ..\postman\environments\MuscleLib Production.environment.yaml: 184974b4-515b-47ec-baf4-c8c6eda92222
+    ..\postman\environments\MuscleLib Local.environment.yaml: 184974b4-515b-47ec-baf4-c8c6eda91111
+  collections:
+    ..\postman\collections\MuscleLib API Behavior Tests: 9040974-0756253c-f41c-48a0-9243-51ac66af7fd2
+    ..\postman\collections\musclelib-exercises-api: 9040974-2e711a0d-5f26-4e84-a7da-765f83621b03
+
+# All resources in the `postman/` folder are automatically registered in Local View.
+# Point to additional files outside the `postman/` folder to register them individually. Example:
+#localResources:
+#  collections:
+#    - ../tests/E2E Test Collection/

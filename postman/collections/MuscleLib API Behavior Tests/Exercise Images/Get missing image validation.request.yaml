@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises/{{imageExerciseId}}/99.jpg"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('missing image message is stable', () => {
+        pm.expect(pm.response.json().message).to.eql('image not found in the database, check the name and try again');
+      });
+    language: text/javascript
+order: 2000

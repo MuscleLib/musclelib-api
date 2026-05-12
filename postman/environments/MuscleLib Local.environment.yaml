@@ -1,0 +1,32 @@
+name: MuscleLib Local
+values:
+  - key: baseUrl
+    value: 'http://localhost:3000'
+    enabled: true
+  - key: langEn
+    value: en
+    enabled: true
+  - key: langPt
+    value: pt
+    enabled: true
+  - key: searchQueryEn
+    value: Bench
+    enabled: true
+  - key: searchQueryPt
+    value: Bench
+    enabled: true
+  - key: missingTranslationSearchQuery
+    value: Squat
+    enabled: true
+  - key: primaryMuscleEn
+    value: chest
+    enabled: true
+  - key: imageExerciseId
+    value: 3_4_Sit-Up
+    enabled: true
+  - key: imageIndex
+    value: '0'
+    enabled: true
+  - key: unknownExerciseId
+    value: barbell_not_found
+    enabled: true

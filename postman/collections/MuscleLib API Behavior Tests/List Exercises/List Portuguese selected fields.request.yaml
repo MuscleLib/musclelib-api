@@ -1,0 +1,28 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises?lang={{langPt}}&fields=equipment,category&limit=1"
+method: GET
+queryParams:
+  lang: "{{langPt}}"
+  fields: equipment,category
+  limit: "1"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      const exercises = pm.response.json();
+      const exercise = exercises[0];
+
+      pm.test('selected field response includes only expected public fields', () => {
+        pm.expect(Object.keys(exercise).sort()).to.eql(['_id', 'category', 'equipment', 'name']);
+      });
+
+      pm.test('selected field values are localized strings', () => {
+        pm.expect(exercise.name).to.be.a('string');
+        pm.expect(exercise.equipment).to.be.a('string');
+        pm.expect(exercise.category).to.be.a('string');
+      });
+    language: text/javascript
+order: 2000
