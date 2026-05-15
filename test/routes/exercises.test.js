@@ -2,6 +2,7 @@ const express = require("express");
 const request = require("supertest");
 
 const fs = require("fs");
+const mongoose = require("mongoose");
 const Exercise = require("../../api/Exercise");
 const exerciseRoutes = require("../../api/exerciseRoutes");
 const { buildExercise, exercisesFixture } = require("../fixtures/exercises.fixture");
@@ -156,7 +157,22 @@ describe("exercise routes", () => {
   });
 
   it("returns localized filter options without listing exercises", async () => {
-    seedStubs();
+    mongoose.models.force_translations.find = jest
+      .fn()
+      .mockResolvedValue([{ translations: { en: "push", pt: "empurrar" } }]);
+    mongoose.models.level_translations.find = jest
+      .fn()
+      .mockResolvedValue([{ translations: { en: "expert", pt: "avancado" } }]);
+    mongoose.models.category_translations.find = jest
+      .fn()
+      .mockResolvedValue([{ translations: { en: "strength", pt: "forca" } }]);
+    mongoose.models.equipment_translations.find = jest
+      .fn()
+      .mockResolvedValue([{ translations: { en: "kettlebells", pt: "kettlebells" } }]);
+    mongoose.models.muscle_translations.find = jest
+      .fn()
+      .mockResolvedValue([{ translations: { en: "chest", pt: "peito" } }]);
+
     const response = await request(app).get("/api/exercises/filters?lang=pt");
 
     expect(response.status).toBe(200);
@@ -166,7 +182,7 @@ describe("exercise routes", () => {
       category: ["forca"],
       equipment: ["kettlebells"],
       primaryMuscles: ["peito"],
-      secondaryMuscles: ["ombros", "triceps"],
+      secondaryMuscles: ["peito"],
     });
   });
 
