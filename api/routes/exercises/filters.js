@@ -1,10 +1,19 @@
-const Exercise = require("../../Exercise");
+const translationModel = require("../../Translation");
+const { errorMessages, parseLanguage } = require("./shared");
 
-const {
-  errorMessages,
-  extractValues,
-  parseLanguage,
-} = require("./shared");
+const ForceTranslation = translationModel("force_translations");
+const LevelTranslation = translationModel("level_translations");
+const CategoryTranslation = translationModel("category_translations");
+const EquipmentTranslation = translationModel("equipment_translations");
+const MuscleTranslation = translationModel("muscle_translations");
+
+const getTranslations = async (model, lang) => {
+  const docs = await model.find({}, { translations: 1, _id: 0 });
+  return docs
+    .map((doc) => doc.translations?.[lang])
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+};
 
 module.exports = async (req, res) => {
   const parsedLanguage = parseLanguage(req.query.lang, req.headers["accept-language"]);
@@ -15,34 +24,21 @@ module.exports = async (req, res) => {
   const { lang } = parsedLanguage;
 
   try {
-    const [
-      rawForces,
-      rawLevels,
-      rawCategories,
-      rawEquipments,
-      rawPrimaryMuscles,
-      rawSecondaryMuscles,
-    ] = await Promise.all([
-      Exercise.distinct("force"),
-      Exercise.distinct("level"),
-      Exercise.distinct("category"),
-      Exercise.distinct("equipment"),
-      Exercise.distinct(`primaryMuscles.${lang}`),
-      Exercise.distinct(`secondaryMuscles.${lang}`),
+    const [force, level, category, equipment, muscles] = await Promise.all([
+      getTranslations(ForceTranslation, lang),
+      getTranslations(LevelTranslation, lang),
+      getTranslations(CategoryTranslation, lang),
+      getTranslations(EquipmentTranslation, lang),
+      getTranslations(MuscleTranslation, lang),
     ]);
 
-    const formatOptions = (values) =>
-      [...new Set(extractValues(values, lang))]
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b));
-
     res.json({
-      force: formatOptions(rawForces),
-      level: formatOptions(rawLevels),
-      category: formatOptions(rawCategories),
-      equipment: formatOptions(rawEquipments),
-      primaryMuscles: formatOptions(rawPrimaryMuscles),
-      secondaryMuscles: formatOptions(rawSecondaryMuscles),
+      force,
+      level,
+      category,
+      equipment,
+      primaryMuscles: muscles,
+      secondaryMuscles: muscles,
     });
   } catch (err) {
     res.status(500).json({
