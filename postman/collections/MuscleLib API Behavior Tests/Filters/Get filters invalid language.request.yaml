@@ -1,0 +1,17 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises/filters?lang=es"
+method: GET
+queryParams:
+  lang: "es"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 400', () => {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('error message mentions valid languages', () => {
+        pm.expect(pm.response.json().message).to.include("'en'").and.to.include("'pt'");
+      });
+    language: text/javascript
+order: 3000
