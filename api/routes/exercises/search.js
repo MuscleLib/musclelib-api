@@ -5,6 +5,7 @@ const {
   buildImagePaths,
   errorMessages,
   fuseOptions,
+  normalizeExerciseData,
   parseFields,
   parseLanguage,
   serializeExercise,
@@ -30,7 +31,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const exercises = await Exercise.find().lean();
+    const exercises = (await Exercise.find().lean()).map(normalizeExerciseData);
     const fuse = new Fuse(exercises, fuseOptions);
     const results = fuse.search(query);
 

@@ -1,19 +1,11 @@
-const translationModel = require("../../Translation");
-const { errorMessages, parseLanguage } = require("./shared");
+const Exercise = require("../../Exercise");
 
-const ForceTranslation = translationModel("force_translations");
-const LevelTranslation = translationModel("level_translations");
-const CategoryTranslation = translationModel("category_translations");
-const EquipmentTranslation = translationModel("equipment_translations");
-const MuscleTranslation = translationModel("muscle_translations");
-
-const getTranslations = async (model, lang) => {
-  const docs = await model.find({}, { translations: 1, _id: 0 });
-  return docs
-    .map((doc) => doc.translations?.[lang])
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
-};
+const {
+  errorMessages,
+  extractValues,
+  normalizeExerciseData,
+  parseLanguage,
+} = require("./shared");
 
 module.exports = async (req, res) => {
   const parsedLanguage = parseLanguage(req.query.lang, req.headers["accept-language"]);
@@ -24,21 +16,20 @@ module.exports = async (req, res) => {
   const { lang } = parsedLanguage;
 
   try {
-    const [force, level, category, equipment, muscles] = await Promise.all([
-      getTranslations(ForceTranslation, lang),
-      getTranslations(LevelTranslation, lang),
-      getTranslations(CategoryTranslation, lang),
-      getTranslations(EquipmentTranslation, lang),
-      getTranslations(MuscleTranslation, lang),
-    ]);
+    const exercises = (await Exercise.find({}).lean()).map(normalizeExerciseData);
+
+    const formatOptions = (values) =>
+      [...new Set(extractValues(values, lang))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b));
 
     res.json({
-      force,
-      level,
-      category,
-      equipment,
-      primaryMuscles: muscles,
-      secondaryMuscles: muscles,
+      force: formatOptions(exercises.map((exercise) => exercise.force)),
+      level: formatOptions(exercises.map((exercise) => exercise.level)),
+      category: formatOptions(exercises.map((exercise) => exercise.category)),
+      equipment: formatOptions(exercises.map((exercise) => exercise.equipment)),
+      primaryMuscles: formatOptions(exercises.map((exercise) => exercise.primaryMuscles)),
+      secondaryMuscles: formatOptions(exercises.map((exercise) => exercise.secondaryMuscles)),
     });
   } catch (err) {
     res.status(500).json({
