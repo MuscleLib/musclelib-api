@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 const errorMessages = {
   invalidLang: {
     en: "Invalid language. Use 'en' or 'pt'.",
@@ -110,6 +113,7 @@ const fuseOptions = {
 };
 
 const defaultImageFormatter = (exercise) => exercise.images;
+const sourceExerciseCache = new Map();
 const formatValidFields = () => `${validFields.join(", ")}.`;
 const validationError = (message, extraBody = {}) => ({
   error: {
@@ -190,6 +194,63 @@ const parsePagination = (pageParam, limitParam, lang) => {
   return { page, limit };
 };
 
+const isLanguageMarker = (value) => languageSet.has(value);
+
+const isCorruptLocalizedValue = (value) => {
+  if (isLanguageMarker(value)) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0 && value.every((item) => isLanguageMarker(item));
+  }
+
+  if (value && typeof value === "object") {
+    return supportedLanguages.some(
+      (lang) => value[lang] !== undefined && isCorruptLocalizedValue(value[lang]),
+    );
+  }
+
+  return false;
+};
+
+const resolveLocalizedValue = (value, lang, seen = new Set()) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  if (seen.has(value)) {
+    return value;
+  }
+
+  seen.add(value);
+
+  const directValue = value[lang];
+  if (directValue !== undefined) {
+    const resolvedDirectValue = resolveLocalizedValue(directValue, lang, seen);
+
+    if (!isCorruptLocalizedValue(resolvedDirectValue)) {
+      return resolvedDirectValue;
+    }
+  }
+
+  for (const fallbackLanguage of supportedLanguages) {
+    const fallbackValue = value[fallbackLanguage];
+
+    if (fallbackValue === undefined || fallbackValue === directValue) {
+      continue;
+    }
+
+    const resolvedFallbackValue = resolveLocalizedValue(fallbackValue, lang, seen);
+
+    if (!isCorruptLocalizedValue(resolvedFallbackValue)) {
+      return resolvedFallbackValue;
+    }
+  }
+
+  return directValue !== undefined ? directValue : value;
+};
+
 const extractValues = (data, lang) => {
   return data
     .flatMap((item) => {
@@ -197,7 +258,7 @@ const extractValues = (data, lang) => {
         return item;
       }
       if (item && typeof item === "object") {
-        return item[lang];
+        return resolveLocalizedValue(item, lang);
       }
       return item;
     })
@@ -206,17 +267,63 @@ const extractValues = (data, lang) => {
     );
 };
 
-const localizeValue = (value, lang) => {
-  if (
-    value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    value[lang] !== undefined
-  ) {
-    return value[lang];
+const localizeValue = (value, lang) => resolveLocalizedValue(value, lang);
+
+const getSourceExercise = (exerciseId) => {
+  if (!exerciseId) {
+    return null;
   }
 
-  return value;
+  if (sourceExerciseCache.has(exerciseId)) {
+    return sourceExerciseCache.get(exerciseId);
+  }
+
+  const sourcePath = path.resolve(__dirname, "../../../exercises", `${exerciseId}.json`);
+
+  try {
+    const sourceExercise = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+    sourceExerciseCache.set(exerciseId, sourceExercise);
+    return sourceExercise;
+  } catch {
+    sourceExerciseCache.set(exerciseId, null);
+    return null;
+  }
+};
+
+const normalizeExerciseData = (exercise) => {
+  const sourceExercise = getSourceExercise(exercise.id);
+
+  if (!sourceExercise) {
+    return exercise;
+  }
+
+  const normalizedExercise = { ...exercise };
+
+  localizedExerciseFields.forEach((field) => {
+    const resolvedEnglishValue = localizeValue(normalizedExercise[field], "en");
+    const resolvedPortugueseValue = localizeValue(normalizedExercise[field], "pt");
+
+    if (
+      isCorruptLocalizedValue(resolvedEnglishValue) &&
+      isCorruptLocalizedValue(resolvedPortugueseValue)
+    ) {
+      normalizedExercise[field] = sourceExercise[field];
+      return;
+    }
+
+    if (isCorruptLocalizedValue(normalizedExercise[field])) {
+      normalizedExercise[field] = {
+        en: resolvedEnglishValue,
+        pt: resolvedPortugueseValue,
+      };
+    }
+  });
+
+  if (!Array.isArray(normalizedExercise.images) || normalizedExercise.images.length === 0) {
+    normalizedExercise.images = sourceExercise.images || buildImagePaths(exercise.id);
+  }
+
+  return normalizedExercise;
 };
 
 const buildImagePaths = (exerciseId) => [
@@ -253,20 +360,21 @@ const serializeSelectedFields = (exercise, lang, fields, imageFormatter) => {
 
 const serializeExercise = (exercise, lang, fields, options = {}) => {
   const imageFormatter = options.imageFormatter || defaultImageFormatter;
+  const normalizedExercise = normalizeExerciseData(exercise);
 
   if (fields) {
-    return serializeSelectedFields(exercise, lang, fields, imageFormatter);
+    return serializeSelectedFields(normalizedExercise, lang, fields, imageFormatter);
   }
 
   const serializedExercise = {
-    ...exercise,
-    _id: exercise._id,
-    images: imageFormatter(exercise),
-    id: exercise.id,
+    ...normalizedExercise,
+    _id: normalizedExercise._id,
+    images: imageFormatter(normalizedExercise),
+    id: normalizedExercise.id,
   };
 
   localizedExerciseFields.forEach((field) => {
-    serializedExercise[field] = localizeValue(exercise[field], lang);
+    serializedExercise[field] = localizeValue(normalizedExercise[field], lang);
   });
 
   return serializedExercise;
@@ -284,6 +392,7 @@ module.exports = {
   parseFields,
   parseLanguage,
   parsePagination,
+  normalizeExerciseData,
   serializeExercise,
   supportedLanguages,
   validFields,

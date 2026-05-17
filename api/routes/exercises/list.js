@@ -4,6 +4,7 @@ const {
   errorMessages,
   extractValues,
   filterableFields,
+  normalizeExerciseData,
   parseFields,
   parseLanguage,
   parsePagination,
@@ -32,20 +33,17 @@ module.exports = async (req, res) => {
   const query = {};
 
   try {
-    const rawForces = await Exercise.distinct("force");
-    const rawLevels = await Exercise.distinct("level");
-    const rawCategories = await Exercise.distinct("category");
-    const rawEquipments = await Exercise.distinct("equipment");
-    const rawPrimaryMuscles = await Exercise.distinct(`primaryMuscles.${lang}`);
-    const rawSecondaryMuscles = await Exercise.distinct(`secondaryMuscles.${lang}`);
+    const allExercises = (await Exercise.find({}).lean()).map(normalizeExerciseData);
+    const valuesForField = (field) =>
+      allExercises.flatMap((exercise) => extractValues([exercise[field]], lang));
 
     const filters = {
-      force: extractValues(rawForces, lang),
-      level: extractValues(rawLevels, lang),
-      category: extractValues(rawCategories, lang),
-      equipment: extractValues(rawEquipments, lang),
-      primaryMuscles: extractValues(rawPrimaryMuscles, lang),
-      secondaryMuscles: extractValues(rawSecondaryMuscles, lang),
+      force: valuesForField("force"),
+      level: valuesForField("level"),
+      category: valuesForField("category"),
+      equipment: valuesForField("equipment"),
+      primaryMuscles: valuesForField("primaryMuscles"),
+      secondaryMuscles: valuesForField("secondaryMuscles"),
     };
 
     for (const [key, value] of Object.entries(req.query)) {
@@ -61,17 +59,29 @@ module.exports = async (req, res) => {
           });
         }
 
-        query[`${key}.${lang}`] = new RegExp(`^${value}`, "i");
+        query[key] = value;
         continue;
       }
 
       query[key] = value;
     }
 
-    const exercises = await Exercise.find(query)
-      .skip(page * limit)
-      .limit(limit)
-      .lean();
+    const matchesValue = (rawValue, filterValue) =>
+      extractValues([rawValue], lang).some(
+        (value) => value.toLowerCase() === filterValue.toLowerCase(),
+      );
+
+    const exercises = allExercises
+      .filter((exercise) =>
+        Object.entries(query).every(([key, value]) => {
+          if (filterableFields.includes(key)) {
+            return matchesValue(exercise[key], value);
+          }
+
+          return exercise[key] === value;
+        }),
+      )
+      .slice(page * limit, page * limit + limit);
 
     if (exercises.length === 0) {
       return res.status(404).json({

@@ -3,6 +3,7 @@ const Exercise = require("../../Exercise");
 const {
   errorMessages,
   extractValues,
+  normalizeExerciseData,
   parseLanguage,
 } = require("./shared");
 
@@ -15,21 +16,7 @@ module.exports = async (req, res) => {
   const { lang } = parsedLanguage;
 
   try {
-    const [
-      rawForces,
-      rawLevels,
-      rawCategories,
-      rawEquipments,
-      rawPrimaryMuscles,
-      rawSecondaryMuscles,
-    ] = await Promise.all([
-      Exercise.distinct("force"),
-      Exercise.distinct("level"),
-      Exercise.distinct("category"),
-      Exercise.distinct("equipment"),
-      Exercise.distinct(`primaryMuscles.${lang}`),
-      Exercise.distinct(`secondaryMuscles.${lang}`),
-    ]);
+    const exercises = (await Exercise.find({}).lean()).map(normalizeExerciseData);
 
     const formatOptions = (values) =>
       [...new Set(extractValues(values, lang))]
@@ -37,12 +24,12 @@ module.exports = async (req, res) => {
         .sort((a, b) => a.localeCompare(b));
 
     res.json({
-      force: formatOptions(rawForces),
-      level: formatOptions(rawLevels),
-      category: formatOptions(rawCategories),
-      equipment: formatOptions(rawEquipments),
-      primaryMuscles: formatOptions(rawPrimaryMuscles),
-      secondaryMuscles: formatOptions(rawSecondaryMuscles),
+      force: formatOptions(exercises.map((exercise) => exercise.force)),
+      level: formatOptions(exercises.map((exercise) => exercise.level)),
+      category: formatOptions(exercises.map((exercise) => exercise.category)),
+      equipment: formatOptions(exercises.map((exercise) => exercise.equipment)),
+      primaryMuscles: formatOptions(exercises.map((exercise) => exercise.primaryMuscles)),
+      secondaryMuscles: formatOptions(exercises.map((exercise) => exercise.secondaryMuscles)),
     });
   } catch (err) {
     res.status(500).json({
