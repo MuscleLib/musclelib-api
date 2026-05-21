@@ -3,6 +3,13 @@ const request = require("supertest");
 const mongoose = require("mongoose");
 const exerciseRoutes = require("../../api/exerciseRoutes");
 
+const ensureTranslationModel = (collection) => {
+  if (!mongoose.models[collection]) {
+    mongoose.models[collection] = {};
+  }
+  return mongoose.models[collection];
+};
+
 describe("GET /api/exercises/filters", () => {
   let app;
 
@@ -22,11 +29,21 @@ describe("GET /api/exercises/filters", () => {
       { translations: { en: "triceps", pt: "triceps" } },
     ],
   } = {}) => {
-    mongoose.models.force_translations.find = jest.fn().mockResolvedValue(force);
-    mongoose.models.level_translations.find = jest.fn().mockResolvedValue(level);
-    mongoose.models.category_translations.find = jest.fn().mockResolvedValue(category);
-    mongoose.models.equipment_translations.find = jest.fn().mockResolvedValue(equipment);
-    mongoose.models.muscle_translations.find = jest.fn().mockResolvedValue(muscles);
+    ensureTranslationModel("force_translations").find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(force),
+    }));
+    ensureTranslationModel("level_translations").find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(level),
+    }));
+    ensureTranslationModel("category_translations").find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(category),
+    }));
+    ensureTranslationModel("equipment_translations").find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(equipment),
+    }));
+    ensureTranslationModel("muscle_translations").find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(muscles),
+    }));
   };
 
   it("returns 400 for invalid language", async () => {
@@ -91,9 +108,9 @@ describe("GET /api/exercises/filters", () => {
   });
 
   it("returns 500 on database error", async () => {
-    mongoose.models.force_translations.find = jest
-      .fn()
-      .mockRejectedValue(new Error("DB connection lost"));
+    ensureTranslationModel("force_translations").find = jest.fn(() => ({
+      lean: jest.fn().mockRejectedValue(new Error("DB connection lost")),
+    }));
     const response = await request(app).get("/api/exercises/filters");
     expect(response.status).toBe(500);
     expect(response.body.message).toBe("Error fetching exercises.");

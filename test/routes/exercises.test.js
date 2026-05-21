@@ -25,6 +25,16 @@ const createFindOneStub = (exercise) => ({
   },
 });
 
+const createTranslationModelStub = (collection, response) => {
+  if (!mongoose.models[collection]) {
+    mongoose.models[collection] = {};
+  }
+
+  mongoose.models[collection].find = jest.fn(() => ({
+    lean: jest.fn().mockResolvedValue(response),
+  }));
+};
+
 describe("exercise routes", () => {
   let app;
   let originalDistinct;
@@ -157,21 +167,21 @@ describe("exercise routes", () => {
   });
 
   it("returns localized filter options without listing exercises", async () => {
-    mongoose.models.force_translations.find = jest
-      .fn()
-      .mockResolvedValue([{ translations: { en: "push", pt: "empurrar" } }]);
-    mongoose.models.level_translations.find = jest
-      .fn()
-      .mockResolvedValue([{ translations: { en: "expert", pt: "avancado" } }]);
-    mongoose.models.category_translations.find = jest
-      .fn()
-      .mockResolvedValue([{ translations: { en: "strength", pt: "forca" } }]);
-    mongoose.models.equipment_translations.find = jest
-      .fn()
-      .mockResolvedValue([{ translations: { en: "kettlebells", pt: "kettlebells" } }]);
-    mongoose.models.muscle_translations.find = jest
-      .fn()
-      .mockResolvedValue([{ translations: { en: "chest", pt: "peito" } }]);
+    createTranslationModelStub("force_translations", [
+      { translations: { en: "push", pt: "empurrar" } },
+    ]);
+    createTranslationModelStub("level_translations", [
+      { translations: { en: "expert", pt: "avancado" } },
+    ]);
+    createTranslationModelStub("category_translations", [
+      { translations: { en: "strength", pt: "forca" } },
+    ]);
+    createTranslationModelStub("equipment_translations", [
+      { translations: { en: "kettlebells", pt: "kettlebells" } },
+    ]);
+    createTranslationModelStub("muscle_translations", [
+      { translations: { en: "chest", pt: "peito" } },
+    ]);
 
     const response = await request(app).get("/api/exercises/filters?lang=pt");
 
