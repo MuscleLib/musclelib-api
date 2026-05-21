@@ -1,0 +1,29 @@
+$kind: http-request
+url: "{{baseUrl}}/api/exercises/filters?lang={{langPt}}"
+method: GET
+queryParams:
+  lang: "{{langPt}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('status is 200', () => {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+
+      pm.test('response has all filter keys', () => {
+        pm.expect(body).to.have.all.keys('force', 'level', 'category', 'equipment', 'primaryMuscles', 'secondaryMuscles');
+      });
+
+      pm.test('all filter values are non-empty arrays', () => {
+        ['force', 'level', 'category', 'equipment', 'primaryMuscles', 'secondaryMuscles'].forEach((key) => {
+          pm.expect(body[key]).to.be.an('array').that.is.not.empty;
+        });
+      });
+
+      pm.test('primaryMuscles and secondaryMuscles return the same list', () => {
+        pm.expect(body.primaryMuscles).to.eql(body.secondaryMuscles);
+      });
+    language: text/javascript
+order: 2000
