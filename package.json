@@ -1,6 +1,6 @@
 {
     "name": "musclelib-api",
-    "version": "2.0.2",
+    "version": "2.1.0",
     "description": "MuscleLib API is a RESTful API for searching exercises, with support for multiple languages and pagination. It was built using Node.js and Express.js, and it uses a MongoDB data[...]",
     "main": "server/start.js",
     "scripts": {
@@ -32,15 +32,15 @@
         "multilanguage"
     ],
     "dependencies": {
-        "axios": "^1.13.4",
+        "axios": "^1.16.1",
         "body-parser": "^2.2.2",
         "bootstrap-icons": "^1.13.1",
         "cors": "^2.8.6",
-        "dotenv": "^17.2.4",
+        "dotenv": "^17.4.2",
         "express": "^5.2.1",
-        "fuse.js": "^7.1.0",
-        "mongoose": "^9.1.6",
-        "nodemon": "^3.1.11",
+        "fuse.js": "^7.3.0",
+        "mongoose": "^9.6.2",
+        "nodemon": "^3.1.14",
         "path": "^0.12.7",
         "swagger-ui-express": "^5.0.1",
         "walk-up-path": "^4.0.0"
@@ -49,11 +49,11 @@
         "node": ">=20 <23"
     },
     "devDependencies": {
-        "eslint": "^9.39.2",
+        "eslint": "^10.4.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.5",
-        "jest": "^30.3.0",
-        "prettier": "^3.8.1",
+        "jest": "^30.4.2",
+        "prettier": "^3.8.3",
         "supertest": "^7.2.2"
     },
     "bugs": {
