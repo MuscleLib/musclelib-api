@@ -1,15 +1,27 @@
 const Exercise = require("../../Exercise");
+const { getTranslations } = require("../../translationCache");
 
 const {
   errorMessages,
-  extractValues,
   filterableFields,
-  normalizeExerciseData,
+  findSlugByLocalizedValue,
+  getLocalizedOptions,
+  hydrateExercise,
   parseFields,
   parseLanguage,
   parsePagination,
   serializeExercise,
 } = require("./shared");
+
+// Maps each filterable field to its translation collection.
+const FILTERABLE_FIELD_TO_COLLECTION = {
+  force:           "force_translations",
+  level:           "level_translations",
+  category:        "category_translations",
+  equipment:       "equipment_translations",
+  primaryMuscles:  "muscle_translations",
+  secondaryMuscles:"muscle_translations",
+};
 
 module.exports = async (req, res) => {
   const parsedLanguage = parseLanguage(req.query.lang, req.headers["accept-language"]);
@@ -30,66 +42,59 @@ module.exports = async (req, res) => {
   }
 
   const { page, limit } = parsedPagination;
-  const query = {};
 
   try {
-    const allExercises = (await Exercise.find({}).lean()).map(normalizeExerciseData);
-    const valuesForField = (field) =>
-      allExercises.flatMap((exercise) => extractValues([exercise[field]], lang));
+    const translations = await getTranslations();
 
-    const filters = {
-      force: valuesForField("force"),
-      level: valuesForField("level"),
-      category: valuesForField("category"),
-      equipment: valuesForField("equipment"),
-      primaryMuscles: valuesForField("primaryMuscles"),
-      secondaryMuscles: valuesForField("secondaryMuscles"),
-    };
+    // Resolve each filterable query param to its English slug.
+    // Non-filterable params are kept as direct equality filters.
+    const slugFilters = {};
+    const directFilters = {};
 
     for (const [key, value] of Object.entries(req.query)) {
-      if (["lang", "fields", "page", "limit"].includes(key)) {
-        continue;
-      }
+      if (["lang", "fields", "page", "limit"].includes(key)) continue;
 
       if (filterableFields.includes(key)) {
-        if (!filters[key].includes(value)) {
+        const collection = FILTERABLE_FIELD_TO_COLLECTION[key];
+        const slug = findSlugByLocalizedValue(translations, collection, value, lang);
+        if (!slug) {
           return res.status(400).json({
             message: errorMessages.invalidValue[lang].replace("${key}", key),
-            avaliableOptions: filters[key],
+            avaliableOptions: getLocalizedOptions(translations, collection, lang),
           });
         }
-
-        query[key] = value;
-        continue;
+        slugFilters[key] = slug;
+      } else {
+        directFilters[key] = value;
       }
-
-      query[key] = value;
     }
 
-    const matchesValue = (rawValue, filterValue) =>
-      extractValues([rawValue], lang).some(
-        (value) => value.toLowerCase() === filterValue.toLowerCase(),
-      );
+    const allExercises = await Exercise.find({}).lean();
 
-    const exercises = allExercises
-      .filter((exercise) =>
-        Object.entries(query).every(([key, value]) => {
-          if (filterableFields.includes(key)) {
-            return matchesValue(exercise[key], value);
+    const filtered = allExercises
+      .filter((exercise) => {
+        const slugMatch = Object.entries(slugFilters).every(([key, slug]) => {
+          if (key === "primaryMuscles" || key === "secondaryMuscles") {
+            return (exercise[key] || []).includes(slug);
           }
-
-          return exercise[key] === value;
-        }),
-      )
+          return exercise[key] === slug;
+        });
+        const directMatch = Object.entries(directFilters).every(
+          ([key, value]) => exercise[key] === value,
+        );
+        return slugMatch && directMatch;
+      })
       .slice(page * limit, page * limit + limit);
 
-    if (exercises.length === 0) {
-      return res.status(404).json({
-        message: errorMessages.noResults[lang],
-      });
+    if (filtered.length === 0) {
+      return res.status(404).json({ message: errorMessages.noResults[lang] });
     }
 
-    res.json(exercises.map((exercise) => serializeExercise(exercise, lang, fields)));
+    res.json(
+      filtered.map((exercise) =>
+        serializeExercise(hydrateExercise(exercise, translations), lang, fields),
+      ),
+    );
   } catch (err) {
     res.status(500).json({
       message: errorMessages.fetchError[lang],

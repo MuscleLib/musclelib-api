@@ -7,29 +7,36 @@ const Exercise = require("../../api/Exercise");
 const exerciseRoutes = require("../../api/exerciseRoutes");
 const { buildExercise, exercisesFixture } = require("../fixtures/exercises.fixture");
 
-const createFindStub = (exercise) => ({
-  skip() {
-    return this;
-  },
-  limit() {
-    return this;
-  },
-  async lean() {
-    return [exercise];
+jest.mock("../../api/translationCache");
+const { getTranslations } = require("../../api/translationCache");
+
+const buildTranslations = () => ({
+  force_translations:     { push: { en: "push", pt: "empurrar" } },
+  level_translations:     { expert: { en: "expert", pt: "avancado" } },
+  mechanic_translations:  { compound: { en: "compound", pt: "composto" } },
+  equipment_translations: { kettlebells: { en: "kettlebells", pt: "kettlebells" } },
+  category_translations:  { strength: { en: "strength", pt: "forca" } },
+  muscle_translations:    {
+    chest:     { en: "chest",     pt: "peito"   },
+    shoulders: { en: "shoulders", pt: "ombros"  },
+    triceps:   { en: "triceps",   pt: "triceps" },
   },
 });
 
+const createFindStub = (exercise) => ({
+  skip() { return this; },
+  limit() { return this; },
+  async lean() { return [exercise]; },
+});
+
 const createFindOneStub = (exercise) => ({
-  async lean() {
-    return exercise;
-  },
+  async lean() { return exercise; },
 });
 
 const createTranslationModelStub = (collection, response) => {
   if (!mongoose.models[collection]) {
     mongoose.models[collection] = {};
   }
-
   mongoose.models[collection].find = jest.fn(() => ({
     lean: jest.fn().mockResolvedValue(response),
   }));
@@ -37,7 +44,6 @@ const createTranslationModelStub = (collection, response) => {
 
 describe("exercise routes", () => {
   let app;
-  let originalDistinct;
   let originalFind;
   let originalFindOne;
   let originalExistsSync;
@@ -47,14 +53,12 @@ describe("exercise routes", () => {
     app.use(express.json());
     app.use("/api/exercises", exerciseRoutes);
 
-    originalDistinct = Exercise.distinct;
     originalFind = Exercise.find;
     originalFindOne = Exercise.findOne;
     originalExistsSync = fs.existsSync;
   });
 
   afterAll(() => {
-    Exercise.distinct = originalDistinct;
     Exercise.find = originalFind;
     Exercise.findOne = originalFindOne;
     fs.existsSync = originalExistsSync;
@@ -62,28 +66,7 @@ describe("exercise routes", () => {
 
   const seedStubs = () => {
     const exercise = buildExercise();
-    Exercise.distinct = async (field) => {
-      switch (field) {
-        case "force":
-          return [{ en: "push", pt: "empurrar" }];
-        case "level":
-          return [{ en: "expert", pt: "avancado" }];
-        case "category":
-          return [{ en: "strength", pt: "forca" }];
-        case "equipment":
-          return [{ en: "kettlebells", pt: "kettlebells" }];
-        case "primaryMuscles.en":
-          return ["chest"];
-        case "secondaryMuscles.en":
-          return ["shoulders", "triceps"];
-        case "primaryMuscles.pt":
-          return ["peito"];
-        case "secondaryMuscles.pt":
-          return ["ombros", "triceps"];
-        default:
-          return [];
-      }
-    };
+    getTranslations.mockResolvedValue(buildTranslations());
     Exercise.findOne = () => createFindOneStub(exercise);
     Exercise.find = () => createFindStub(exercise);
   };

@@ -1,11 +1,12 @@
 const Fuse = require("fuse.js");
 
 const Exercise = require("../../Exercise");
+const { getTranslations } = require("../../translationCache");
 const {
   buildImagePaths,
   errorMessages,
   fuseOptions,
-  normalizeExerciseData,
+  hydrateExercise,
   parseFields,
   parseLanguage,
   serializeExercise,
@@ -31,7 +32,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const exercises = (await Exercise.find().lean()).map(normalizeExerciseData);
+    const translations = await getTranslations();
+    const exercises = (await Exercise.find().lean()).map((ex) =>
+      hydrateExercise(ex, translations),
+    );
+
     const fuse = new Fuse(exercises, fuseOptions);
     const results = fuse.search(query);
 
@@ -53,7 +58,7 @@ module.exports = async (req, res) => {
     const matchedExercises = filteredResults.map((result) =>
       serializeExercise(result.item, lang, fields, {
         imageFormatter: (exercise) => buildImagePaths(exercise.id),
-      })
+      }),
     );
 
     res.json({ exercises: matchedExercises });
