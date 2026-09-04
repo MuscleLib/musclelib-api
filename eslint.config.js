@@ -23,6 +23,13 @@ const jestGlobals = {
   test: "readonly",
 };
 
+// Globals provided by the mongosh runtime (scripts/ are run with mongosh --file).
+const mongoshGlobals = {
+  db: "readonly",
+  print: "readonly",
+  quit: "readonly",
+};
+
 module.exports = [
   {
     ignores: ["coverage/**", "dest/**", "node_modules/**"],
@@ -40,6 +47,12 @@ module.exports = [
     files: ["test/**/*.js", "**/*.test.js", "**/*.spec.js"],
     languageOptions: {
       globals: jestGlobals,
+    },
+  },
+  {
+    files: ["scripts/**/*.js"],
+    languageOptions: {
+      globals: mongoshGlobals,
     },
   },
   prettier,
