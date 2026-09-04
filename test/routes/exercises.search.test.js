@@ -5,6 +5,24 @@ const Exercise = require("../../api/Exercise");
 const exerciseRoutes = require("../../api/exerciseRoutes");
 const { exercisesFixture } = require("../fixtures/exercises.fixture");
 
+jest.mock("../../api/translationCache");
+const { getTranslations } = require("../../api/translationCache");
+
+// Translations match the original capitalization from the seed data.
+const buildTranslations = () => ({
+  force_translations:     { push: { en: "Push", pt: "Empurrar" } },
+  level_translations:     { intermediate: { en: "Intermediate", pt: "Intermediário" }, beginner: { en: "Beginner", pt: "Iniciante" } },
+  mechanic_translations:  { compound: { en: "Compound", pt: "Composto" } },
+  equipment_translations: { barbell: { en: "Barbell", pt: "Barra" } },
+  category_translations:  { strength: { en: "Strength", pt: "Força" } },
+  muscle_translations:    {
+    chest:   { en: "Chest",   pt: "Peito"   },
+    triceps: { en: "Triceps", pt: "Tríceps" },
+    legs:    { en: "Legs",    pt: "Pernas"  },
+    glutes:  { en: "Glutes",  pt: "Glúteos" },
+  },
+});
+
 describe("exercise search route", () => {
   let app;
   let originalFind;
@@ -21,6 +39,7 @@ describe("exercise search route", () => {
   });
 
   it("returns only requested fields in portuguese", async () => {
+    getTranslations.mockResolvedValue(buildTranslations());
     Exercise.find = jest.fn(() => ({
       lean: jest.fn().mockResolvedValue(exercisesFixture),
     }));
@@ -56,6 +75,7 @@ describe("exercise search route", () => {
   });
 
   it("returns generated image urls when images are requested", async () => {
+    getTranslations.mockResolvedValue(buildTranslations());
     Exercise.find = jest.fn(() => ({
       lean: jest.fn().mockResolvedValue(exercisesFixture),
     }));
@@ -73,6 +93,7 @@ describe("exercise search route", () => {
   });
 
   it("returns a fallback message when translation does not exist", async () => {
+    getTranslations.mockResolvedValue(buildTranslations());
     Exercise.find = jest.fn(() => ({
       lean: jest.fn().mockResolvedValue(exercisesFixture),
     }));

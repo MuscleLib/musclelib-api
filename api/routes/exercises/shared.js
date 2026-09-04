@@ -380,15 +380,67 @@ const serializeExercise = (exercise, lang, fields, options = {}) => {
   return serializedExercise;
 };
 
+// Maps scalar enumerable fields to their translation collection name.
+const FIELD_TO_COLLECTION = {
+  force:     "force_translations",
+  level:     "level_translations",
+  mechanic:  "mechanic_translations",
+  equipment: "equipment_translations",
+  category:  "category_translations",
+};
+
+// Converts a slug-based exercise (as stored in MongoDB after migration) back to
+// the multilingual { en, pt } shape expected by serializeExercise / normalizeExerciseData.
+const hydrateExercise = (exercise, translations) => {
+  const hydrated = { ...exercise };
+
+  for (const [field, collection] of Object.entries(FIELD_TO_COLLECTION)) {
+    const slug = exercise[field];
+    if (slug) {
+      const t = translations[collection]?.[slug];
+      hydrated[field] = t || { en: slug, pt: slug };
+    }
+  }
+
+  const muscleCache = translations["muscle_translations"] || {};
+  for (const field of ["primaryMuscles", "secondaryMuscles"]) {
+    const slugs = exercise[field] || [];
+    hydrated[field] = {
+      en: slugs.map((s) => muscleCache[s]?.en || s),
+      pt: slugs.map((s) => muscleCache[s]?.pt || s),
+    };
+  }
+
+  return hydrated;
+};
+
+// Returns the slug key for a localized value within a translation collection, or null.
+const findSlugByLocalizedValue = (translations, collection, value, lang) => {
+  for (const [slug, t] of Object.entries(translations[collection] || {})) {
+    if (t[lang] === value) return slug;
+  }
+  return null;
+};
+
+// Returns all localized display values for a collection in the requested language.
+const getLocalizedOptions = (translations, collection, lang) =>
+  Object.values(translations[collection] || {})
+    .map((t) => t[lang])
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
 module.exports = {
   buildImagePaths,
   defaultLanguage,
   errorMessages,
   extractValues,
   filterableFields,
+  findSlugByLocalizedValue,
   fuseOptions,
   getErrorLanguage,
   getHeaderLanguage,
+  getLocalizedOptions,
+  hydrateExercise,
   parseFields,
   parseLanguage,
   parsePagination,
