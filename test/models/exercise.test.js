@@ -7,23 +7,8 @@ describe("Exercise model schema", () => {
     expect(Exercise.modelName).toBe("Exercise");
   });
 
-  it("defines required localized string fields", () => {
-    const requiredStringPaths = [
-      "name.en",
-      "name.pt",
-      "force.en",
-      "force.pt",
-      "level.en",
-      "level.pt",
-      "mechanic.en",
-      "mechanic.pt",
-      "equipment.en",
-      "equipment.pt",
-      "category.en",
-      "category.pt",
-    ];
-
-    for (const path of requiredStringPaths) {
+  it("defines required localized string fields for name", () => {
+    for (const path of ["name.en", "name.pt"]) {
       const schemaPath = getPath(path);
       expect(schemaPath).toBeTruthy();
       expect(schemaPath.instance).toBe("String");
@@ -31,17 +16,28 @@ describe("Exercise model schema", () => {
     }
   });
 
-  it("defines required localized string arrays", () => {
-    const requiredArrayPaths = [
-      "primaryMuscles.en",
-      "primaryMuscles.pt",
-      "secondaryMuscles.en",
-      "secondaryMuscles.pt",
-      "instructions.en",
-      "instructions.pt",
-    ];
+  it("defines enumerable fields as required plain strings", () => {
+    for (const field of ["force", "level", "mechanic", "equipment", "category"]) {
+      const schemaPath = getPath(field);
+      expect(schemaPath).toBeTruthy();
+      expect(schemaPath.instance).toBe("String");
+      expect(schemaPath.options.required).toBe(true);
+    }
+  });
 
-    for (const path of requiredArrayPaths) {
+  it("defines muscle arrays as required plain string arrays", () => {
+    for (const field of ["primaryMuscles", "secondaryMuscles"]) {
+      const schemaPath = getPath(field);
+      expect(schemaPath).toBeTruthy();
+      expect(schemaPath.instance).toBe("Array");
+      expect(Array.isArray(schemaPath.options.type)).toBe(true);
+      expect(schemaPath.options.type[0]).toBe(String);
+      expect(schemaPath.options.required).toBe(true);
+    }
+  });
+
+  it("defines instructions as required localized string arrays", () => {
+    for (const path of ["instructions.en", "instructions.pt"]) {
       const schemaPath = getPath(path);
       expect(schemaPath).toBeTruthy();
       expect(schemaPath.instance).toBe("Array");
