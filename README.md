@@ -4,13 +4,13 @@
 
 ## About
 
-**MuscleLib API** is a bilingual (English/Portuguese) RESTful API for searching and listing fitness exercises. It provides fuzzy search, advanced filtering, pagination, field selection, and high-quality exercise images — all in a single API.
+**MuscleLib API** is a multilingual (English/Portuguese/Spanish) RESTful API for searching and listing fitness exercises. It provides fuzzy search, advanced filtering, pagination, field selection, and high-quality exercise images — all in a single API.
 
 Built with **Node.js** and **Express.js**, the API uses **MongoDB** for storage and **Fuse.js** for intelligent search.
 
 ## How It Works
 
-The API serves exercise data in two languages (`en` and `pt`). Every exercise has a bilingual data structure — when you make a request, the API automatically localizes the response to your preferred language.
+The API serves exercise data in three languages (`en`, `pt`, and `es`). Every exercise has a bilingual data structure — when you make a request, the API automatically localizes the response to your preferred language.
 
 **Language detection priority:**
 1. `lang` query parameter (`?lang=pt`)
@@ -23,7 +23,7 @@ Search uses **fuzzy matching** via Fuse.js, so you don't need exact spelling. Fi
 
 - **Exercise Listing** — Paginated list with configurable page and limit
 - **Fuzzy Search** — Typo-tolerant search via Fuse.js
-- **Bilingual** — Native support for English and Portuguese (PT-BR)
+- **Bilingual** — Native support for English, Portuguese (PT-BR), and Spanish
 - **Advanced Filters** — Filter by force, level, equipment, category, and muscles
 - **Field Selection** — Request only the fields you need to reduce payload
 - **Exercise Images** — Two high-quality images per exercise
@@ -63,7 +63,7 @@ Returns paginated exercises matching the applied filters.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `lang` | `string` | `Accept-Language` or `"en"` | Language: `"en"` or `"pt"` |
+| `lang` | `string` | `Accept-Language` or `"en"` | Language: `"en"`, `"pt"`, or `"es"` |
 | `page` | `integer` | `0` | Page number (zero-indexed) |
 | `limit` | `integer` | `50` | Items per page |
 | `fields` | `string` | all fields | Comma-separated fields to return |
@@ -260,11 +260,11 @@ Redirects to the external API documentation site.
     "en": String,                      // Name in English
     "pt": String                       // Name in Portuguese
   },
-  "force":         { "en": String, "pt": String },
+  "force":         { "en": String, "pt": String, "es": String },
   "level":         { "en": String, "pt": String },
   "mechanic":      { "en": String, "pt": String },
   "equipment":     { "en": String, "pt": String },
-  "primaryMuscles":   { "en": [String], "pt": [String] },
+  "primaryMuscles":   { "en": [String], "pt": [String], "es": [String] },
   "secondaryMuscles": { "en": [String], "pt": [String] },
   "instructions":  { "en": [String], "pt": [String] },
   "category":      { "en": String, "pt": String },
