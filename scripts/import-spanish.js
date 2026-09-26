@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const Exercise = require("../api/Exercise");
 const Translation = require("../api/Translation");
 
+// Spanish source: 0x10-z/free-exercise-db-es (derived from free-exercise-db).
 const SOURCE_URL =
   "https://raw.githubusercontent.com/0x10-z/free-exercise-db-es/main/dist/exercises_es.json";
 
