@@ -301,6 +301,24 @@ When returned via the API, localized fields are flattened to the requested langu
 }
 ```
 
+### Importing Spanish translations
+
+The Spanish exercise text is imported from `0x10-z/free-exercise-db-es` and matched to existing exercises by their stable `id`.
+
+Run a dry run first:
+
+```bash
+npm run import:es -- --dry-run
+```
+
+Then import the translations:
+
+```bash
+npm run import:es
+```
+
+The importer updates exercise names and instructions with `es` values and populates Spanish values in the shared translation collections. It does not replace existing English or Portuguese data.
+
 ## Error Handling
 
 All error responses follow a consistent JSON structure:
