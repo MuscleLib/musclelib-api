@@ -23,7 +23,7 @@ Search uses **fuzzy matching** via Fuse.js, so you don't need exact spelling. Fi
 
 - **Exercise Listing** — Paginated list with configurable page and limit
 - **Fuzzy Search** — Typo-tolerant search via Fuse.js
-- **Bilingual** — Native support for English, Portuguese (PT-BR), and Spanish
+- **Multilingual** — Native support for English, Portuguese (PT-BR), and Spanish
 - **Advanced Filters** — Filter by force, level, equipment, category, and muscles
 - **Field Selection** — Request only the fields you need to reduce payload
 - **Exercise Images** — Two high-quality images per exercise
