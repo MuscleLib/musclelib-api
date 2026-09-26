@@ -19,38 +19,47 @@ const exercise = {
   name: {
     en: "Bench Press",
     pt: "Supino Reto",
+    es: "Press de banca",
   },
   force: {
     en: "push",
     pt: "empurrar",
+    es: "empujar",
   },
   level: {
     en: "beginner",
     pt: "iniciante",
+    es: "principiante",
   },
   mechanic: {
     en: "compound",
     pt: "composto",
+    es: "compuesto",
   },
   equipment: {
     en: "barbell",
     pt: "barra",
+    es: "barra",
   },
   primaryMuscles: {
     en: ["chest"],
     pt: ["peito"],
+    es: ["pecho"],
   },
   secondaryMuscles: {
     en: ["triceps"],
     pt: ["triceps"],
+    es: ["tríceps"],
   },
   instructions: {
     en: ["Lie on the bench.", "Press the bar up."],
     pt: ["Deite no banco.", "Empurre a barra."],
+    es: ["Acuéstese en el banco.", "Empuje la barra hacia arriba."],
   },
   category: {
     en: "strength",
     pt: "forca",
+    es: "fortaleza",
   },
   images: ["Bench_Press/0.jpg", "Bench_Press/1.jpg"],
 };
@@ -68,7 +77,7 @@ describe("exercise shared helpers", () => {
     });
 
     it("uses the accept-language header for invalid language error messages", () => {
-      const result = parseLanguage("es", "pt-BR,pt;q=0.9,en;q=0.8");
+      const result = parseLanguage("fr", "pt-BR,pt;q=0.9,en;q=0.8");
 
       expect(result).toEqual({
         error: {
@@ -82,7 +91,7 @@ describe("exercise shared helpers", () => {
 
     it("falls back to the default language for unsupported accept-language headers", () => {
       expect(getHeaderLanguage("es-ES,es;q=0.9")).toBe("es");
-      expect(getErrorLanguage("es", "es-ES,es;q=0.9")).toBe(defaultLanguage);
+      expect(getErrorLanguage("fr", "es-ES,es;q=0.9")).toBe("es");
     });
   });
 
@@ -186,6 +195,22 @@ describe("exercise shared helpers", () => {
         secondaryMuscles: ["triceps"],
         instructions: ["Deite no banco.", "Empurre a barra."],
         category: "forca",
+        images: exercise.images,
+      });
+    });
+
+    it("localizes exercise responses to Spanish", () => {
+      expect(serializeExercise(exercise, "es", null)).toEqual({
+        ...exercise,
+        name: "Press de banca",
+        force: "empujar",
+        level: "principiante",
+        mechanic: "compuesto",
+        equipment: "barra",
+        primaryMuscles: ["pecho"],
+        secondaryMuscles: ["tríceps"],
+        instructions: ["Acuéstese en el banco.", "Empuje la barra hacia arriba."],
+        category: "fortaleza",
         images: exercise.images,
       });
     });
