@@ -25,7 +25,7 @@ const errorMessages = {
   invalideParamettersPageLimit: {
     en: "The 'page' and 'limit' parameters cannot be empty.",
     pt: "Os parâmetros 'page' e 'limit' não podem estar vazios.",
-    es: "Los parámetros 'page' y 'limit' no pueden estar vacíos",
+    es: "Los parámetros 'page' y 'limit' no pueden estar vacíos.",
   },
   invalidPage: {
     en: "parameter 'page' is invalid. use a value greater than or equal to 0.",
@@ -36,7 +36,6 @@ const errorMessages = {
     en: "parameter 'limit' is invalid. use a value greater than 0.",
     pt: "Parâmetro 'limit' inválido. use um valor maior que 0",
     es: "Parámetro 'limit' no válido. use un valor mayor que 0",
-
   },
   invalidValue: {
     en: "The ${key} provided is incorrect or does not exist in the database. Try:",
