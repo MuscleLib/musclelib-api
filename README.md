@@ -10,7 +10,7 @@ Built with **Node.js** and **Express.js**, the API uses **MongoDB** for storage 
 
 ## How It Works
 
-The API serves exercise data in three languages (`en`, `pt`, and `es`). Every exercise has a bilingual data structure — when you make a request, the API automatically localizes the response to your preferred language.
+The API serves exercise data in three languages (`en`, `pt`, and `es`). Exercise names and instructions are stored in localized form, while shared attributes use translation collections — when you make a request, the API automatically localizes the response to your preferred language.
 
 **Language detection priority:**
 1. `lang` query parameter (`?lang=pt`)
@@ -252,29 +252,37 @@ Redirects to the external API documentation site.
 
 ### Stored Format (MongoDB)
 
+Exercise documents keep stable slugs for shared attributes and localized values for exercise-specific text:
+
 ```javascript
 {
-  "_id": ObjectId,                     // Auto-generated
-  "id": String,                        // Unique slug (e.g. "Barbell_Curl")
+  "_id": ObjectId,
+  "id": String,
   "name": {
-    "en": String,                      // Name in English
-    "pt": String                       // Name in Portuguese
+    "en": String,
+    "pt": String,
+    "es": String
   },
-  "force":         { "en": String, "pt": String, "es": String },
-  "level":         { "en": String, "pt": String },
-  "mechanic":      { "en": String, "pt": String },
-  "equipment":     { "en": String, "pt": String },
-  "primaryMuscles":   { "en": [String], "pt": [String], "es": [String] },
-  "secondaryMuscles": { "en": [String], "pt": [String] },
-  "instructions":  { "en": [String], "pt": [String] },
-  "category":      { "en": String, "pt": String },
-  "images": [String]                   // e.g. ["Barbell_Curl/0.jpg", "Barbell_Curl/1.jpg"]
+  "force": String,
+  "level": String,
+  "mechanic": String,
+  "equipment": String,
+  "primaryMuscles": [String],
+  "secondaryMuscles": [String],
+  "instructions": {
+    "en": [String],
+    "pt": [String],
+    "es": [String]
+  },
+  "category": String,
+  "images": [String]
 }
 ```
 
+Shared values such as force, level, equipment, category, and muscles are resolved through translation collections containing `en`, `pt`, and `es`.
 ### Serialized Response
 
-When returned via the API, bilingual fields are flattened to the requested language:
+When returned via the API, localized fields are flattened to the requested language:
 
 ```javascript
 {
@@ -312,7 +320,7 @@ All error responses follow a consistent JSON structure:
 | `404` | No exercises found matching the criteria |
 | `500` | Internal server error |
 
-**Bilingual error messages** — all messages are returned in the language detected from your request.
+**Multilingual error messages** — all messages are returned in the language detected from your request.
 
 ## Technologies Used
 
