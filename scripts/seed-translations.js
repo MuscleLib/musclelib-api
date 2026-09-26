@@ -43,7 +43,6 @@ function insertTranslations(targetCollection, values) {
         translations: {
           en: item.en,
           pt: item.pt,
-          es: item.en
         }
       })
     }
@@ -56,9 +55,9 @@ function insertTranslations(targetCollection, values) {
   db[targetCollection].createIndex({ key: 1 }, { unique: true })
 
   const ops = docs.map(doc => ({
-    replaceOne: {
+    updateOne: {
       filter: { key: doc.key },
-      replacement: doc,
+      update: { $set: doc },
       upsert: true
     }
   }))

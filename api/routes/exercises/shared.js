@@ -3,68 +3,83 @@ const path = require("path");
 
 const errorMessages = {
   invalidLang: {
-    en: "Invalid language. Use 'en' or 'pt'.",
-    pt: "Idioma inválido. Use 'en' ou 'pt'.",
+    en: "Invalid language. Use 'en', 'pt' or 'es'.",
+    es: "Idioma no válido. Use 'en', 'pt' o 'es'.",
+    pt: "Idioma inválido. Use 'en', 'pt' ou 'es'.",
   },
   invalideParametters: {
     en: "The field(s) parameter(s) cannot be empty. Valid fields are:",
     pt: "O(s) parâmetro(s) de campo(s) não pode(m) estar vazio(s). Campos válidos são:",
+    es: "El/los parámetro(s) de campo(s) no puede(n) estar vacío(s). Los campos válidos son:",
   },
   invalidFields: {
     en: "Invalid field(s). Valid fields are:",
     pt: "Campo(s) inválido(s). Campos válidos são:",
+    es: "Campo(s) no válido(s). Los campos válidos son:",
   },
   missingQuery: {
     en: "Please provide a search term.",
     pt: "Por favor, insira um termo de pesquisa.",
+    es: "Por favor, introduzca un término de búsqueda.",
   },
   invalideParamettersPageLimit: {
     en: "The 'page' and 'limit' parameters cannot be empty.",
     pt: "Os parâmetros 'page' e 'limit' não podem estar vazios.",
+    es: "Los parámetros 'page' y 'limit' no pueden estar vacíos.",
   },
   invalidPage: {
     en: "parameter 'page' is invalid. use a value greater than or equal to 0.",
     pt: "Parâmetro 'page' inválido. use um valor maior ou igual a 0.",
+    es: "Parámetro 'page' no válido. use un valor mayor o igual a 0.",
   },
   invalidLimit: {
     en: "parameter 'limit' is invalid. use a value greater than 0.",
     pt: "Parâmetro 'limit' inválido. use um valor maior que 0",
+    es: "Parámetro 'limit' no válido. use un valor mayor que 0",
   },
   invalidValue: {
     en: "The ${key} provided is incorrect or does not exist in the database. Try:",
     pt: "O ${key} inserido está incorreto ou não existe no banco de dados. Tente:",
+    es: "El ${key} proporcionado es incorrecto o no existe en la base de datos. Pruebe:",
   },
   resultesFound: {
     en: "Exercises found:",
     pt: "Exercícios encontrados:",
+    es: "Ejercicios encontrados:",
   },
   noResults: {
     en: "No exercises found.",
     pt: "Nenhum exercício encontrado.",
+    es: "No se encontraron ejercicios.",
   },
   noTranslation: {
     en: "Exercise not available in the selected language. Try:",
     pt: "Exercício não disponível no idioma selecionado. Tente:",
+    es: "El ejercicio no está disponible en el idioma seleccionado. Pruebe:",
   },
   noSugestions: {
     en: "No suggestions available.",
     pt: "Nenhuma sugestão disponível.",
+    es: "No hay sugerencias disponibles.",
   },
   fetchError: {
     en: "Error fetching exercises.",
     pt: "Erro ao buscar os exercícios.",
+    es: "Error al obtener los ejercicios.",
   },
   searchError: {
     en: "Error searching exercises.",
     pt: "Erro ao buscar exercícios.",
+    es: "Error al buscar ejercicios.",
   },
   notFoundImage: {
     en: "image not found in the database, check the name and try again",
     pt: "Imagem não encontrada no banco de dados, verifique o nome e tente novamente",
+    es: "Imagen no encontrada en la base de datos, compruebe el nombre e inténtelo de nuevo",
   },
 };
 
-const supportedLanguages = ["en", "pt"];
+const supportedLanguages = ["en", "pt", "es"];
 const defaultLanguage = "en";
 const defaultPage = 0;
 const defaultLimit = 50;
@@ -109,7 +124,7 @@ const localizedExerciseFields = [
 const fuseOptions = {
   includeScore: true,
   threshold: 0.4,
-  keys: ["name.en", "name.pt"],
+  keys: ["name.en", "name.pt", "name.es"],
 };
 
 const defaultImageFormatter = (exercise) => exercise.images;
@@ -408,6 +423,7 @@ const hydrateExercise = (exercise, translations) => {
     hydrated[field] = {
       en: slugs.map((s) => muscleCache[s]?.en || s),
       pt: slugs.map((s) => muscleCache[s]?.pt || s),
+      es: slugs.map((s) => muscleCache[s]?.es || s),
     };
   }
 

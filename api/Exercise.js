@@ -4,6 +4,7 @@ const exerciseSchema = new mongoose.Schema({
   name: {
     en: { type: String, required: true },
     pt: { type: String, required: true },
+    es: { type: String },
   },
   force:    { type: String, required: true },
   level:    { type: String, required: true },
@@ -15,6 +16,7 @@ const exerciseSchema = new mongoose.Schema({
   instructions: {
     en: { type: [String], required: true },
     pt: { type: [String], required: true },
+    es: { type: [String] },
   },
   images: { type: [String], required: true },
   id: { type: String, required: true, unique: true },
