@@ -8,8 +8,7 @@
         "dev": "nodemon server/start.js",
         "test": "jest",
         "lint": "eslint .",
-        "format": "prettier --write .",
-        "import:es": "node scripts/import-spanish.js"
+        "format": "prettier --write ."
     },
     "author": "Daniel",
     "license": "MIT",
