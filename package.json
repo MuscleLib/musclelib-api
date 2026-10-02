@@ -1,7 +1,7 @@
 {
     "name": "musclelib-api",
-    "version": "2.1.0",
-    "description": "MuscleLib API is a RESTful API for searching exercises, with support for multiple languages and pagination. It was built using Node.js and Express.js, and it uses a MongoDB data[...]",
+    "version": "2.2.0",
+    "description": "MuscleLib API is a RESTful API for searching exercises, with support for multiple languages and pagination. It was built using Node.js and Express.js, and it uses a MongoDB database.",
     "main": "server/start.js",
     "scripts": {
         "start": "node server/start.js",
