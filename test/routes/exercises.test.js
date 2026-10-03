@@ -72,9 +72,9 @@ describe("exercise routes", () => {
   };
 
   it("returns 400 for an invalid language in list endpoint", async () => {
-    const response = await request(app).get("/api/exercises?lang=es");
+    const response = await request(app).get("/api/exercises?lang=fr");
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid language. Use 'en' or 'pt'.");
+    expect(response.body.message).toBe("Invalid language. Use 'en', 'pt' or 'es'.");
   });
 
   it("returns 400 for empty fields in list endpoint", async () => {

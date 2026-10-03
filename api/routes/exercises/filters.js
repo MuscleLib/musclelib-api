@@ -1,16 +1,17 @@
 const Translation = require("../../Translation");
+const { localizeTranslation } = require("../../spanishVocabulary");
 
 const { errorMessages, parseLanguage } = require("./shared");
 
-const formatTranslations = (translations, lang) =>
-  [...new Set(translations.map((translation) => translation.translations?.[lang]).filter(Boolean))].sort(
+const formatTranslations = (translations, lang, collection) =>
+  [...new Set(translations.map((translation) => localizeTranslation(collection, translation)[lang]).filter(Boolean))].sort(
     (a, b) => a.localeCompare(b),
   );
 
 const getTranslationValues = async (collection, lang) => {
   const model = Translation(collection);
   const translations = await model.find().lean();
-  return formatTranslations(translations, lang);
+  return formatTranslations(translations, lang, collection);
 };
 
 module.exports = async (req, res) => {

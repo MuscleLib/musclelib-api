@@ -1,4 +1,5 @@
 const Translation = require("./Translation");
+const { localizeTranslation } = require("./spanishVocabulary");
 
 const COLLECTIONS = [
   "force_translations",
@@ -20,7 +21,7 @@ const getTranslations = async () => {
     const docs = await model.find().lean();
     result[col] = {};
     for (const doc of docs) {
-      result[col][doc.key] = doc.translations;
+      result[col][doc.key] = localizeTranslation(col, doc);
     }
   }
 
