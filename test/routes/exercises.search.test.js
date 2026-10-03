@@ -59,10 +59,10 @@ describe("exercise search route", () => {
   });
 
   it("returns 400 for an invalid language", async () => {
-    const response = await request(app).get("/api/exercises/search?query=Bench&lang=es");
+    const response = await request(app).get("/api/exercises/search?query=Bench&lang=fr");
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid language. Use 'en' or 'pt'.");
+    expect(response.body.message).toBe("Invalid language. Use 'en', 'pt' or 'es'.");
   });
 
   it("returns 400 for invalid fields", async () => {
