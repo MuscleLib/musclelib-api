@@ -76,6 +76,15 @@ describe("exercise shared helpers", () => {
       });
     });
 
+    it("negotiates supported regional languages by preference and quality", () => {
+      expect(parseLanguage(undefined, "es-ES,es;q=0.9")).toEqual({ lang: "es" });
+      expect(parseLanguage(undefined, "fr-FR, PT-br;q=0.8,en;q=0.5")).toEqual({ lang: "pt" });
+      expect(parseLanguage(undefined, "pt;q=0.2,es;q=0.9")).toEqual({ lang: "es" });
+      expect(parseLanguage(undefined, "es;q=0,pt;q=0.5")).toEqual({ lang: "pt" });
+      expect(parseLanguage(undefined, "fr-FR")).toEqual({ lang: "en" });
+      expect(parseLanguage("en", "es-ES")).toEqual({ lang: "en" });
+    });
+
     it("uses the accept-language header for invalid language error messages", () => {
       const result = parseLanguage("fr", "pt-BR,pt;q=0.9,en;q=0.8");
 

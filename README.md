@@ -17,6 +17,8 @@ The API serves exercise data in three languages (`en`, `pt`, and `es`). Exercise
 2. `Accept-Language` HTTP header
 3. Falls back to English (`en`)
 
+Regional language tags such as `es-ES` and `pt-BR` are supported in `Accept-Language`. The API selects a supported language by quality (`q`) preference; an explicit `lang` takes priority.
+
 Search uses **fuzzy matching** via Fuse.js, so you don't need exact spelling. Filters are validated against the actual values present in the database, and images are served directly from the filesystem.
 
 ## Features
