@@ -76,6 +76,8 @@ Returns paginated exercises matching the applied filters.
 
 Valid `fields` values: `name`, `force`, `level`, `mechanic`, `equipment`, `primaryMuscles`, `secondaryMuscles`, `instructions`, `category`, `images`.
 
+Send field selection as one comma-separated parameter (for example, `fields=name,images`). Repeated `fields` parameters return a JSON validation error with HTTP 400 in both listing and search.
+
 **Example:**
 ```bash
 curl "https://musclelib-api.vercel.app/api/exercises?lang=en&page=0&limit=5&force=pull"

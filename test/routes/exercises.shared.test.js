@@ -106,6 +106,10 @@ describe("exercise shared helpers", () => {
       });
     });
 
+    it.each([["name", "images"], { name: "images" }, null])("rejects non-string fields without throwing: %p", (fields) => {
+      expect(parseFields(fields, "en").error.status).toBe(400);
+    });
+
     it("returns valid fields in the empty fields error", () => {
       const result = parseFields("", "en");
 
