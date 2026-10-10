@@ -47,9 +47,9 @@ describe("GET /api/exercises/filters", () => {
   };
 
   it("returns 400 for invalid language", async () => {
-    const response = await request(app).get("/api/exercises/filters?lang=es");
+    const response = await request(app).get("/api/exercises/filters?lang=fr");
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Invalid language. Use 'en' or 'pt'.");
+    expect(response.body.message).toBe("Invalid language. Use 'en', 'pt' or 'es'.");
   });
 
   it("returns all filter keys in English", async () => {

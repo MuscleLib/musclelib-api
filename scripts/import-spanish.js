@@ -3,6 +3,7 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const Exercise = require("../api/Exercise");
 const Translation = require("../api/Translation");
+const { getSpanishTranslation } = require("../api/spanishVocabulary");
 
 // Spanish source: 0x10-z/free-exercise-db-es (derived from free-exercise-db).
 const SOURCE_URL =
@@ -17,6 +18,7 @@ const TRANSLATION_FIELDS = [
 ];
 
 const addTranslation = (maps, collection, key, value, conflicts) => {
+  value = getSpanishTranslation(collection, key, value);
   if (!key || !value) return;
 
   const map = maps[collection] || new Map();
