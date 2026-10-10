@@ -175,6 +175,12 @@ const parseFields = (rawFields, lang) => {
     );
   }
 
+  if (typeof rawFields !== "string") {
+    return validationError(
+      `${errorMessages.invalidFields[lang]} ${formatValidFields()}`,
+    );
+  }
+
   const fields = rawFields.split(",").map((field) => field.trim());
   const invalidFields = fields.filter((field) => !validFieldSet.has(field));
 
