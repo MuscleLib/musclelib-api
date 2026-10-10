@@ -140,8 +140,20 @@ const validationError = (message, extraBody = {}) => ({
   },
 });
 
-const getHeaderLanguage = (acceptLanguage = "") =>
-  acceptLanguage.split(",")[0]?.split("-")[0] || defaultLanguage;
+const getHeaderLanguage = (acceptLanguage = "") => {
+  if (typeof acceptLanguage !== "string") return defaultLanguage;
+
+  const preferences = acceptLanguage.split(",").map((entry) => {
+    const [tag, ...parameters] = entry.trim().toLowerCase().split(";");
+    const qualityParameter = parameters.find((parameter) => parameter.trim().startsWith("q="));
+    const quality = qualityParameter === undefined ? 1 : Number(qualityParameter.trim().slice(2));
+    return { lang: tag.trim().split("-")[0], quality };
+  });
+
+  return preferences
+    .filter(({ lang, quality }) => languageSet.has(lang) && quality > 0 && quality <= 1)
+    .sort((a, b) => b.quality - a.quality)[0]?.lang || defaultLanguage;
+};
 
 const getErrorLanguage = (requestedLang, acceptLanguage) => {
   if (languageSet.has(requestedLang)) {
@@ -153,7 +165,7 @@ const getErrorLanguage = (requestedLang, acceptLanguage) => {
 };
 
 const parseLanguage = (requestedLang, acceptLanguage) => {
-  const lang = requestedLang || defaultLanguage;
+  const lang = requestedLang || getHeaderLanguage(acceptLanguage);
 
   if (!languageSet.has(lang)) {
     return validationError(
