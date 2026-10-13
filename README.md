@@ -1,6 +1,6 @@
 # MuscleLib API
 
-![Version](https://img.shields.io/badge/version-2.3.0-orange.svg) ![Node.js](https://img.shields.io/badge/node.js-%3E%3D20%20%3C23-green.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.0-orange.svg) ![Node.js](https://img.shields.io/badge/node.js-%3E%3D20%20%3C25-green.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## About
 
