@@ -277,7 +277,16 @@ const parsePagination = (pageParam, limitParam, lang) => {
     return validationError(errorMessages.invalideParamettersPageLimit[lang]);
   }
 
-  const page = pageParam ? Number.parseInt(pageParam, 10) : defaultPage;
+  // A repeated parameter arrives as an array, which parseInt would silently
+  // reduce to its first value ("1,2" -> 1).
+  if (pageParam !== undefined && typeof pageParam !== "string") {
+    return validationError(errorMessages.invalidPage[lang]);
+  }
+  if (limitParam !== undefined && typeof limitParam !== "string") {
+    return validationError(errorMessages.invalidLimit[lang]);
+  }
+
+  const page = pageParam ?Number.parseInt(pageParam, 10) : defaultPage;
   const limit = limitParam ? Number.parseInt(limitParam, 10) : defaultLimit;
 
   if (page > maxPaginationValue) {

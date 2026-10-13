@@ -244,6 +244,24 @@ describe("exercise shared helpers", () => {
       );
     });
 
+    it.each([
+      [["1", "2"], "10", "invalidPage"],
+      [["0", ""], "10", "invalidPage"],
+      [{ $gt: "0" }, "10", "invalidPage"],
+      ["0", ["5", "10"], "invalidLimit"],
+      ["0", ["5", "x"], "invalidLimit"],
+      [["1", "2"], ["5", "10"], "invalidPage"],
+    ])("rejects repeated or non-string pagination: page %p, limit %p", (page, limit, message) => {
+      supportedLanguages.forEach((lang) => {
+        expect(parsePagination(page, limit, lang)).toEqual({
+          error: {
+            status: 400,
+            body: { message: errorMessages[message][lang] },
+          },
+        });
+      });
+    });
+
     it("rejects negative page and zero limit values", () => {
       expect(parsePagination("-1", "10", "en").error.body.message).toBe(
         errorMessages.invalidPage.en,

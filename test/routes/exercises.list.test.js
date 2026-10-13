@@ -359,6 +359,40 @@ describe("exercise list database filtering and pagination", () => {
     },
   );
 
+  it.each([
+    ["page=1&page=2", "invalidPage", "en"],
+    ["page=0&page=", "invalidPage", "pt"],
+    ["limit=5&limit=10", "invalidLimit", "es"],
+    ["limit=5&limit=x", "invalidLimit", "pt"],
+    ["page=1&page=2&limit=5&limit=10", "invalidPage", "es"],
+  ])(
+    "rejects repeated pagination parameters before querying: %s (%s, %s)",
+    async (params, message, lang) => {
+      const response = await request(app).get(
+        `/api/exercises?${params}&lang=${lang}`,
+      );
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: errorMessages[message][lang] });
+      expect(getTranslations).not.toHaveBeenCalled();
+      expect(Exercise.find).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects array-shaped pagination with an extended query parser", async () => {
+    const extendedApp = express();
+    extendedApp.set("query parser", "extended");
+    extendedApp.use("/api/exercises", routes);
+    for (const [params, message] of [
+      ["page[]=1", "invalidPage"],
+      ["limit[]=5", "invalidLimit"],
+    ]) {
+      const response = await request(extendedApp).get(`/api/exercises?${params}`);
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: errorMessages[message].en });
+    }
+    expect(Exercise.find).not.toHaveBeenCalled();
+  });
+
   it("explains when the page and limit produce an unsafe offset", async () => {
     const response = await request(app).get(
       "/api/exercises?page=9007199254740991&limit=2&lang=es",

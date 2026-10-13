@@ -94,6 +94,8 @@ Valid `fields` values: `name`, `force`, `level`, `mechanic`, `equipment`, `prima
 
 Send field selection as one comma-separated parameter (for example, `fields=name,images`). Repeated `fields` parameters return a JSON validation error with HTTP 400 in both listing and search.
 
+Likewise, send `page` and `limit` at most once each. A repeated `page` or `limit` (for example, `page=1&page=2`) returns the localized invalid `page` or `limit` error with HTTP 400; previously the first value was silently used.
+
 **Example:**
 ```bash
 curl "https://musclelib-api.vercel.app/api/exercises?lang=en&page=0&limit=5&force=pull"
