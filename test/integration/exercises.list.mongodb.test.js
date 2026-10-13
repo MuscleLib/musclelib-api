@@ -73,6 +73,9 @@ describeMongoDB("exercise list against real MongoDB", () => {
       dbName: testDatabaseName,
       monitorCommands: true,
       serverSelectionTimeoutMS: 10000,
+      // The driver loads os with a dynamic import(), which Jest rejects without
+      // --experimental-vm-modules. That leaves the handshake without client metadata.
+      runtimeAdapters: { os: require("os") },
     });
     const db = mongoose.connection.db;
     const version = await db.admin().command({ buildInfo: 1 });
