@@ -46,7 +46,7 @@
         "walk-up-path": "^4.0.0"
     },
     "engines": {
-        "node": ">=20 <23"
+        "node": ">=20 <25"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
