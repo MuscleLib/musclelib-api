@@ -13,11 +13,11 @@ scripts:
       const body = pm.response.json();
 
       pm.test('response has all filter keys', () => {
-        pm.expect(body).to.have.all.keys('force', 'level', 'category', 'equipment', 'primaryMuscles', 'secondaryMuscles');
+        pm.expect(body).to.have.all.keys('force', 'level', 'mechanic', 'category', 'equipment', 'primaryMuscles', 'secondaryMuscles');
       });
 
       pm.test('all filter values are non-empty arrays', () => {
-        ['force', 'level', 'category', 'equipment', 'primaryMuscles', 'secondaryMuscles'].forEach((key) => {
+        ['force', 'level', 'mechanic', 'category', 'equipment', 'primaryMuscles', 'secondaryMuscles'].forEach((key) => {
           pm.expect(body[key]).to.be.an('array').that.is.not.empty;
         });
       });

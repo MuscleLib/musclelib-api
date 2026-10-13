@@ -6,7 +6,10 @@ const request = require("supertest");
 const Exercise = require("../../api/Exercise");
 const routes = require("../../api/exerciseRoutes");
 const { getTranslations, resetCache } = require("../../api/translationCache");
-const { errorMessages } = require("../../api/routes/exercises/shared");
+const {
+  errorMessages,
+  validListParameters,
+} = require("../../api/routes/exercises/shared");
 
 // Opt in with a test server URI. Never use the application's .env connection.
 const describeMongoDB = process.env.MONGODB_TEST_URI ? describe : describe.skip;
@@ -29,6 +32,7 @@ const toSlug = (value) =>
 const labels = {
   push: { en: "push", pt: "empurrar", es: "empujar" },
   expert: { en: "expert", pt: "avancado", es: "experto" },
+  compound: { en: "compound", pt: "composto", es: "compuesto" },
   strength: { en: "strength", pt: "forca", es: "fuerza" },
   chest: { en: "chest", pt: "peito", es: "pecho" },
   shoulders: { en: "shoulders", pt: "ombros", es: "hombros" },
@@ -42,6 +46,7 @@ const labels = {
 const combinedFilters = {
   force: "push",
   level: "expert",
+  mechanic: "compound",
   equipment: "issue66_fixture",
   category: "strength",
   primaryMuscles: "chest",
@@ -260,7 +265,7 @@ describeMongoDB("exercise list against real MongoDB", () => {
   });
 
   it.each(["en", "pt", "es"])(
-    "applies all six filters as AND, including array membership, in %s",
+    "applies all seven filters as AND, including array membership, in %s",
     async (lang) => {
       for (const [page, expectedIds] of [
         [0, ["Issue66_Match_0", "Issue66_Match_1"]],
@@ -284,6 +289,7 @@ describeMongoDB("exercise list against real MongoDB", () => {
         );
         expect(response.body[0].primaryMuscles).toContain(labels.chest[lang]);
         expect(response.body[0].equipment).toBe(labels.issue66_fixture[lang]);
+        expect(response.body[0].mechanic).toBe(labels.compound[lang]);
         expect(commands).toHaveLength(1);
         expect(commands[0]).toMatchObject({
           filter: mongoFilters,
@@ -303,6 +309,7 @@ describeMongoDB("exercise list against real MongoDB", () => {
         lang,
         equipment: labels.issue66_fixture[lang],
         force: labels.push[lang],
+        mechanic: labels.compound[lang],
         primaryMuscles: labels.chest[lang],
         secondaryMuscles: labels.triceps[lang],
         level: labels.expert[lang],
@@ -324,16 +331,21 @@ describeMongoDB("exercise list against real MongoDB", () => {
     expect(transferredDocuments).toBe(0);
   });
 
-  it("preserves direct scalar filters and complete localized response fields", async () => {
+  it("accepts the stored mechanic slug with id and returns complete localized fields", async () => {
     const response = await request(app).get(
       "/api/exercises?id=Issue66_Match_0&mechanic=compound&lang=es",
     );
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(1);
+    expect(commands[0].filter).toEqual({
+      id: { $eq: "Issue66_Match_0" },
+      mechanic: { $in: ["compound"] },
+    });
     expect(response.body[0]).toMatchObject({
       id: "Issue66_Match_0",
       name: "Ejercicio de integración 0",
       force: "empujar",
+      mechanic: "compuesto",
       equipment: "equipo de prueba",
       instructions: ["Instrucción de prueba"],
       primaryMuscles: ["hombros", "pecho"],
@@ -417,6 +429,7 @@ describeMongoDB("exercise list against real MongoDB", () => {
           equipment: "test equipment",
           level: "expert",
           force: "push",
+          mechanic: "compound",
           category: "strength",
           primaryMuscles: "chest",
           secondaryMuscles: "triceps",
@@ -480,16 +493,50 @@ describeMongoDB("exercise list against real MongoDB", () => {
     expect(commands).toHaveLength(0);
   });
 
+  it.each(["en", "pt", "es"])(
+    "accepts every mechanic advertised by /filters and rejects others in %s",
+    async (lang) => {
+      const filters = await request(app)
+        .get("/api/exercises/filters")
+        .query({ lang });
+      expect(filters.status).toBe(200);
+      expect(filters.body.mechanic).toContain(labels.compound[lang]);
+      for (const mechanic of filters.body.mechanic) {
+        commands = [];
+        const response = await request(app)
+          .get("/api/exercises")
+          .query({ lang, mechanic, limit: 1 });
+        expect(response.status).toBe(200);
+        expect(response.body[0].mechanic).toBe(mechanic);
+        expect(commands[0].filter).toEqual({
+          mechanic: { $in: [expect.any(String)] },
+        });
+      }
+      commands = [];
+      const invalid = await request(app)
+        .get("/api/exercises")
+        .query({ lang, mechanic: "invalid" });
+      expect(invalid.status).toBe(400);
+      expect(invalid.body.avaliableOptions).toEqual(filters.body.mechanic);
+      expect(commands).toHaveLength(0);
+    },
+  );
+
   it.each([
-    "unknown=value",
-    "$where=return%20true",
-    "name.en=Squat",
-    "force[$ne]=push",
+    ["unknown=value", ["unknown"]],
+    ["$where=return%20true", ["$where"]],
+    ["name.en=Squat", ["name.en"]],
+    ["force[$ne]=push", ["force[$ne]"]],
+    ["id=Issue66_Match_0&id=Issue66_Match_1", ["id"]],
   ])(
-    "does not forward unsupported query fields to MongoDB: %s",
-    async (params) => {
+    "rejects unsupported query fields without forwarding them to MongoDB: %s",
+    async (params, invalidParameters) => {
       const response = await request(app).get(`/api/exercises?${params}`);
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        message: `${errorMessages.invalidQueryParameters.en} ${validListParameters.join(", ")}.`,
+        invalidParameters,
+      });
       expect(commands).toHaveLength(0);
     },
   );

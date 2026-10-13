@@ -3,7 +3,10 @@ const request = require("supertest");
 const Exercise = require("../../api/Exercise");
 const routes = require("../../api/exerciseRoutes");
 const { buildExercise } = require("../fixtures/exercises.fixture");
-const { errorMessages } = require("../../api/routes/exercises/shared");
+const {
+  errorMessages,
+  validListParameters,
+} = require("../../api/routes/exercises/shared");
 
 jest.mock("../../api/translationCache");
 const { getTranslations } = require("../../api/translationCache");
@@ -21,6 +24,7 @@ const translations = {
   },
   mechanic_translations: {
     compound: { en: "compound", pt: "composto", es: "compuesto" },
+    isolation: { en: "isolation", pt: "isolamento", es: "aislamiento" },
   },
   muscle_translations: {
     chest: { en: "chest", pt: "peito", es: "pecho" },
@@ -29,12 +33,18 @@ const translations = {
   },
 };
 
+const invalidParametersBody = (invalidParameters, lang = "en") => ({
+  message: `${errorMessages.invalidQueryParameters[lang]} ${validListParameters.join(", ")}.`,
+  invalidParameters,
+});
+
 describe("exercise list database filtering and pagination", () => {
   const app = express();
   app.use("/api/exercises", routes);
   let query;
 
   beforeEach(() => {
+    getTranslations.mockClear();
     getTranslations.mockResolvedValue(translations);
     query = {
       sort: jest.fn().mockReturnThis(),
@@ -72,6 +82,7 @@ describe("exercise list database filtering and pagination", () => {
         limit: 1,
         force: translations.force_translations.push[lang],
         level: translations.level_translations.expert[lang],
+        mechanic: translations.mechanic_translations.compound[lang],
         equipment: translations.equipment_translations.kettlebells[lang],
         category: translations.category_translations.strength[lang],
         primaryMuscles: translations.muscle_translations.chest[lang],
@@ -81,6 +92,7 @@ describe("exercise list database filtering and pagination", () => {
       expect(Exercise.find).toHaveBeenCalledWith({
         force: { $in: ["push"] },
         level: { $in: ["expert"] },
+        mechanic: { $in: ["compound"] },
         equipment: { $in: ["kettlebells"] },
         category: { $in: ["strength"] },
         primaryMuscles: { $in: ["chest"] },
@@ -92,6 +104,9 @@ describe("exercise list database filtering and pagination", () => {
       expect(response.body[0].primaryMuscles).toEqual([
         translations.muscle_translations.chest[lang],
       ]);
+      expect(response.body[0].mechanic).toBe(
+        translations.mechanic_translations.compound[lang],
+      );
     },
   );
 
@@ -162,15 +177,76 @@ describe("exercise list database filtering and pagination", () => {
     ]);
   });
 
-  it("keeps direct id and mechanic filters as literal equality", async () => {
+  it("keeps the id filter as literal equality", async () => {
     const response = await request(app).get(
-      "/api/exercises?id=Plyo_Kettlebell_Pushups&mechanic=compound",
+      "/api/exercises?id=Plyo_Kettlebell_Pushups",
     );
     expect(response.status).toBe(200);
     expect(Exercise.find).toHaveBeenCalledWith({
       id: { $eq: "Plyo_Kettlebell_Pushups" },
-      mechanic: { $eq: "compound" },
     });
+  });
+
+  it.each([
+    ["en", "isolation", "isolation"],
+    ["pt", "isolamento", "isolation"],
+    ["es", "aislamiento", "isolation"],
+    ["pt", "compound", "compound"],
+    ["es", "isolation", "isolation"],
+  ])(
+    "resolves mechanic in %s from %s to its stored slug",
+    async (lang, mechanic, slug) => {
+      const response = await request(app)
+        .get("/api/exercises")
+        .query({ lang, mechanic });
+      expect(response.status).toBe(200);
+      expect(Exercise.find).toHaveBeenCalledWith({ mechanic: { $in: [slug] } });
+    },
+  );
+
+  it("prefers a mechanic label in the selected language over a matching slug", async () => {
+    getTranslations.mockResolvedValue({
+      ...translations,
+      mechanic_translations: {
+        compound: { en: "compound", pt: "isolation" },
+        isolation: { en: "isolation", pt: "isolamento" },
+      },
+    });
+    const response = await request(app)
+      .get("/api/exercises")
+      .query({ lang: "pt", mechanic: "isolation" });
+    expect(response.status).toBe(200);
+    expect(Exercise.find).toHaveBeenCalledWith({
+      mechanic: { $in: ["compound"] },
+    });
+  });
+
+  it.each(["en", "pt", "es"])(
+    "rejects an unknown mechanic with localized options in %s",
+    async (lang) => {
+      for (const mechanic of ["unknown", "constructor", "__proto__"]) {
+        const response = await request(app)
+          .get("/api/exercises")
+          .query({ lang, mechanic });
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+          message: errorMessages.invalidValue[lang].replace("${key}", "mechanic"),
+          avaliableOptions: Object.values(translations.mechanic_translations)
+            .map((labels) => labels[lang])
+            .sort((a, b) => a.localeCompare(b)),
+        });
+      }
+      expect(Exercise.find).not.toHaveBeenCalled();
+    },
+  );
+
+  it("accepts stored slugs only for mechanic", async () => {
+    const response = await request(app)
+      .get("/api/exercises")
+      .query({ lang: "pt", force: "push" });
+    expect(response.status).toBe(400);
+    expect(response.body.avaliableOptions).toEqual(["empurrar"]);
+    expect(Exercise.find).not.toHaveBeenCalled();
   });
 
   it("passes the filters and pagination through real Mongoose to the database driver", async () => {
@@ -196,7 +272,7 @@ describe("exercise list database filtering and pagination", () => {
         primaryMuscles: { $in: ["chest"] },
         secondaryMuscles: { $in: ["triceps"] },
         id: { $eq: "Plyo_Kettlebell_Pushups" },
-        mechanic: { $eq: "compound" },
+        mechanic: { $in: ["compound"] },
       },
       expect.objectContaining({ sort: { _id: 1 }, skip: 6, limit: 2 }),
     );
@@ -204,7 +280,12 @@ describe("exercise list database filtering and pagination", () => {
     expect(response.body[0].name).toBe("Flexoes com Kettlebell");
   });
 
-  it.each(["force=invalid", "primaryMuscles=invalid", "force=push&force=pull"])(
+  it.each([
+    "force=invalid",
+    "primaryMuscles=invalid",
+    "force=push&force=pull",
+    "mechanic=compound&mechanic=isolation",
+  ])(
     "rejects invalid localized filters before querying: %s",
     async (params) => {
       const response = await request(app).get(`/api/exercises?${params}`);
@@ -215,32 +296,52 @@ describe("exercise list database filtering and pagination", () => {
   );
 
   it.each([
-    "unknown=value",
-    "$where=return%20true",
-    "name.en=Squat",
-    "images=example.jpg",
-    "id=first&id=second",
-    "force[$ne]=push",
+    ["unknown=value", ["unknown"]],
+    ["$where=return%20true", ["$where"]],
+    ["name.en=Squat", ["name.en"]],
+    ["images=example.jpg", ["images"]],
+    ["id=first&id=second", ["id"]],
+    ["force[$ne]=push", ["force[$ne]"]],
+    ["Force=push", ["Force"]],
+    ["muscle=chest&force=push&sort=name", ["muscle", "sort"]],
   ])(
-    "preserves no results for unsupported filters without forwarding them: %s",
-    async (params) => {
+    "rejects unsupported parameters before reading translations or exercises: %s",
+    async (params, invalidParameters) => {
       const response = await request(app).get(`/api/exercises?${params}`);
-      expect(response.status).toBe(404);
-      expect(response.body).toEqual({ message: errorMessages.noResults.en });
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual(invalidParametersBody(invalidParameters));
+      expect(getTranslations).not.toHaveBeenCalled();
       expect(Exercise.find).not.toHaveBeenCalled();
     },
   );
 
-  it("does not pass nested filter operators to MongoDB with an extended query parser", async () => {
-    const extendedApp = express();
-    extendedApp.set("query parser", "extended");
-    extendedApp.use("/api/exercises", routes);
-    const response = await request(extendedApp).get(
-      "/api/exercises?force[$ne]=push",
-    );
-    expect(response.status).toBe(400);
-    expect(Exercise.find).not.toHaveBeenCalled();
-  });
+  it.each(["pt", "es"])(
+    "localizes the unsupported parameter error in %s",
+    async (lang) => {
+      const response = await request(app)
+        .get("/api/exercises?unknown=value")
+        .set("Accept-Language", lang);
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual(invalidParametersBody(["unknown"], lang));
+    },
+  );
+
+  it.each([
+    ["force[$ne]=push", "avaliableOptions"],
+    ["mechanic[$ne]=compound", "avaliableOptions"],
+    ["id[$ne]=Plyo_Kettlebell_Pushups", "invalidParameters"],
+  ])(
+    "does not pass nested filter operators to MongoDB with an extended query parser: %s",
+    async (params, property) => {
+      const extendedApp = express();
+      extendedApp.set("query parser", "extended");
+      extendedApp.use("/api/exercises", routes);
+      const response = await request(extendedApp).get(`/api/exercises?${params}`);
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty(property);
+      expect(Exercise.find).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ["limit=9007199254740992", "limitTooLarge"],
@@ -258,6 +359,40 @@ describe("exercise list database filtering and pagination", () => {
     },
   );
 
+  it.each([
+    ["page=1&page=2", "invalidPage", "en"],
+    ["page=0&page=", "invalidPage", "pt"],
+    ["limit=5&limit=10", "invalidLimit", "es"],
+    ["limit=5&limit=x", "invalidLimit", "pt"],
+    ["page=1&page=2&limit=5&limit=10", "invalidPage", "es"],
+  ])(
+    "rejects repeated pagination parameters before querying: %s (%s, %s)",
+    async (params, message, lang) => {
+      const response = await request(app).get(
+        `/api/exercises?${params}&lang=${lang}`,
+      );
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: errorMessages[message][lang] });
+      expect(getTranslations).not.toHaveBeenCalled();
+      expect(Exercise.find).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects array-shaped pagination with an extended query parser", async () => {
+    const extendedApp = express();
+    extendedApp.set("query parser", "extended");
+    extendedApp.use("/api/exercises", routes);
+    for (const [params, message] of [
+      ["page[]=1", "invalidPage"],
+      ["limit[]=5", "invalidLimit"],
+    ]) {
+      const response = await request(extendedApp).get(`/api/exercises?${params}`);
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ message: errorMessages[message].en });
+    }
+    expect(Exercise.find).not.toHaveBeenCalled();
+  });
+
   it("explains when the page and limit produce an unsafe offset", async () => {
     const response = await request(app).get(
       "/api/exercises?page=9007199254740991&limit=2&lang=es",
@@ -269,13 +404,14 @@ describe("exercise list database filtering and pagination", () => {
     expect(Exercise.find).not.toHaveBeenCalled();
   });
 
-  it.each(["equipment", "primaryMuscles", "secondaryMuscles"])(
+  it.each([
+    ["equipment", "equipment_translations"],
+    ["mechanic", "mechanic_translations"],
+    ["primaryMuscles", "muscle_translations"],
+    ["secondaryMuscles", "muscle_translations"],
+  ])(
     "queries all slugs sharing a localized label for %s",
-    async (field) => {
-      const collection =
-        field === "equipment"
-          ? "equipment_translations"
-          : "muscle_translations";
+    async (field, collection) => {
       getTranslations.mockResolvedValue({
         ...translations,
         [collection]: {

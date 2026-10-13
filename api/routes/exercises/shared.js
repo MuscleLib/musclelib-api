@@ -20,6 +20,11 @@ const errorMessages = {
     pt: "Campo(s) inválido(s). Campos válidos são:",
     es: "Campo(s) no válido(s). Los campos válidos son:",
   },
+  invalidQueryParameters: {
+    en: "Invalid query parameter(s). Valid parameters are:",
+    pt: "Parâmetro(s) de consulta inválido(s). Parâmetros válidos são:",
+    es: "Parámetro(s) de consulta no válido(s). Los parámetros válidos son:",
+  },
   missingQuery: {
     en: "Please provide a search term.",
     pt: "Por favor, insira um termo de pesquisa.",
@@ -116,14 +121,31 @@ const validFields = [
 ];
 const validFieldSet = new Set(validFields);
 
+// Ordered as documented, since the unknown-parameter error lists them.
 const filterableFields = [
-  "primaryMuscles",
-  "secondaryMuscles",
-  "level",
   "force",
+  "level",
+  "mechanic",
   "equipment",
   "category",
+  "primaryMuscles",
+  "secondaryMuscles",
 ];
+
+// Stored scalar fields matched by exact equality instead of a localized label.
+const directFilterFields = ["id"];
+const directFilterFieldSet = new Set(directFilterFields);
+
+// Every query parameter accepted by the exercise list; anything else is rejected.
+const validListParameters = [
+  "lang",
+  "page",
+  "limit",
+  "fields",
+  ...filterableFields,
+  ...directFilterFields,
+];
+const validListParameterSet = new Set(validListParameters);
 
 const languageSet = new Set(supportedLanguages);
 const excludedExtractedValues = new Set(supportedLanguages);
@@ -148,6 +170,7 @@ const fuseOptions = {
 const defaultImageFormatter = (exercise) => exercise.images;
 const sourceExerciseCache = new Map();
 const formatValidFields = () => `${validFields.join(", ")}.`;
+const formatValidListParameters = () => `${validListParameters.join(", ")}.`;
 const validationError = (message, extraBody = {}) => ({
   error: {
     status: 400,
@@ -226,12 +249,44 @@ const parseFields = (rawFields, lang) => {
   return { fields };
 };
 
+// Rejects unknown names, including operator-shaped keys such as "force[$ne]",
+// and repeated direct filters before anything reaches MongoDB.
+const parseListParameters = (query, lang) => {
+  const invalidParameters = Object.entries(query)
+    .filter(
+      ([key, value]) =>
+        !validListParameterSet.has(key) ||
+        (directFilterFieldSet.has(key) && typeof value !== "string"),
+    )
+    .map(([key]) => key);
+
+  if (invalidParameters.length > 0) {
+    return validationError(
+      `${errorMessages.invalidQueryParameters[lang]} ${formatValidListParameters()}`,
+      {
+        invalidParameters,
+      },
+    );
+  }
+
+  return {};
+};
+
 const parsePagination = (pageParam, limitParam, lang) => {
   if (pageParam === "" || limitParam === "") {
     return validationError(errorMessages.invalideParamettersPageLimit[lang]);
   }
 
-  const page = pageParam ? Number.parseInt(pageParam, 10) : defaultPage;
+  // A repeated parameter arrives as an array, which parseInt would silently
+  // reduce to its first value ("1,2" -> 1).
+  if (pageParam !== undefined && typeof pageParam !== "string") {
+    return validationError(errorMessages.invalidPage[lang]);
+  }
+  if (limitParam !== undefined && typeof limitParam !== "string") {
+    return validationError(errorMessages.invalidLimit[lang]);
+  }
+
+  const page = pageParam ?Number.parseInt(pageParam, 10) : defaultPage;
   const limit = limitParam ? Number.parseInt(limitParam, 10) : defaultLimit;
 
   if (page > maxPaginationValue) {
@@ -494,6 +549,7 @@ const getLocalizedOptions = (translations, collection, lang) =>
 module.exports = {
   buildImagePaths,
   defaultLanguage,
+  directFilterFields,
   errorMessages,
   extractValues,
   filterableFields,
@@ -506,9 +562,11 @@ module.exports = {
   maxLimit,
   parseFields,
   parseLanguage,
+  parseListParameters,
   parsePagination,
   normalizeExerciseData,
   serializeExercise,
   supportedLanguages,
   validFields,
+  validListParameters,
 };
