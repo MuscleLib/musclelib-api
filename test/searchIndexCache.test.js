@@ -11,6 +11,7 @@ jest.mock("../api/routes/exercises/shared", () => {
 });
 
 const Fuse = require("fuse.js");
+const { performance } = require("node:perf_hooks");
 const Exercise = require("../api/Exercise");
 const { getTranslations } = require("../api/translationCache");
 const { hydrateExercise } = require("../api/routes/exercises/shared");
@@ -20,6 +21,7 @@ const {
   SEARCH_INDEX_TTL_MS,
 } = require("../api/searchIndexCache");
 const { buildExercise } = require("./fixtures/exercises.fixture");
+const deferred = require("./helpers/deferred");
 
 describe("exercise search index cache", () => {
   let now;
@@ -29,7 +31,7 @@ describe("exercise search index cache", () => {
     resetSearchIndex();
     jest.clearAllMocks();
     now = 1000;
-    jest.spyOn(Date, "now").mockImplementation(() => now);
+    jest.spyOn(performance, "now").mockImplementation(() => now);
     lean = jest.fn().mockResolvedValue([buildExercise()]);
     jest.spyOn(Exercise, "find").mockReturnValue({ lean });
     getTranslations.mockResolvedValue({});
@@ -49,20 +51,23 @@ describe("exercise search index cache", () => {
     now += 1;
     expect(await getSearchIndex()).not.toBe(initial);
     expect(Exercise.find).toHaveBeenCalledTimes(2);
-    expect(getTranslations).toHaveBeenNthCalledWith(2, { refresh: true });
+    expect(getTranslations).toHaveBeenNthCalledWith(2);
     expect(hydrateExercise).toHaveBeenCalledTimes(2);
     expect(Fuse).toHaveBeenCalledTimes(2);
   });
 
   it("coalesces concurrent cold searches and expired refreshes", async () => {
     for (let build = 1; build <= 2; build += 1) {
-      let finish;
-      lean.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+      const started = deferred();
+      const blocked = deferred();
+      lean.mockImplementationOnce(() => {
+        started.resolve();
+        return blocked.promise;
+      });
       const requests = [getSearchIndex(), getSearchIndex(), getSearchIndex()];
-      // Let the translation read finish while the exercise read remains pending.
-      await Promise.resolve();
+      await started.promise;
       expect(Exercise.find).toHaveBeenCalledTimes(build);
-      finish([buildExercise()]);
+      blocked.resolve([buildExercise()]);
       const indexes = await Promise.all(requests);
       expect(indexes[1]).toBe(indexes[0]);
       expect(indexes[2]).toBe(indexes[0]);
@@ -143,16 +148,43 @@ describe("exercise search index cache", () => {
   });
 
   it("does not repopulate the active cache when reset during a pending build", async () => {
-    let finish;
-    lean.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    const started = deferred();
+    const blocked = deferred();
+    lean.mockImplementationOnce(() => {
+      started.resolve();
+      return blocked.promise;
+    });
     const pending = getSearchIndex();
-    await Promise.resolve();
+    await started.promise;
     resetSearchIndex();
     const current = await getSearchIndex();
-    finish([buildExercise({ name: { en: "Zebra" } })]);
+    blocked.resolve([buildExercise({ name: { en: "Zebra" } })]);
     const discarded = await pending;
     expect(discarded).not.toBe(current);
     expect(await getSearchIndex()).toBe(current);
     expect(current.search("Zebra")).toEqual([]);
+  });
+
+  it("starts reading exercises while translations are still pending", async () => {
+    const translations = deferred();
+    const exercisesStarted = deferred();
+    getTranslations.mockReturnValueOnce(translations.promise);
+    lean.mockImplementationOnce(() => {
+      exercisesStarted.resolve();
+      return Promise.resolve([buildExercise()]);
+    });
+    const pending = getSearchIndex();
+    await exercisesStarted.promise;
+    expect(Fuse).not.toHaveBeenCalled();
+    translations.resolve({});
+    expect((await pending).search("Plyo")).toHaveLength(1);
+  });
+
+  it("expires on elapsed time even if the system clock moves backwards", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(1000);
+    const initial = await getSearchIndex();
+    Date.now.mockReturnValue(-3_600_000);
+    now += SEARCH_INDEX_TTL_MS;
+    expect(await getSearchIndex()).not.toBe(initial);
   });
 });

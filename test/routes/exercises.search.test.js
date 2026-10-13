@@ -1,5 +1,6 @@
 const express = require("express");
 const request = require("supertest");
+const { performance } = require("node:perf_hooks");
 
 const Exercise = require("../../api/Exercise");
 const { resetSearchIndex, SEARCH_INDEX_TTL_MS } = require("../../api/searchIndexCache");
@@ -171,7 +172,7 @@ describe("exercise search route", () => {
   });
 
   it("returns the localized 500 on refresh failure and retries the next request", async () => {
-    const clock = jest.spyOn(Date, "now").mockReturnValue(1000);
+    const clock = jest.spyOn(performance, "now").mockReturnValue(1000);
     jest.spyOn(console, "error").mockImplementation(() => {});
     getTranslations.mockResolvedValue(buildTranslations());
     const lean = jest.fn().mockResolvedValue(exercisesFixture);
