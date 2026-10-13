@@ -152,6 +152,21 @@ GET /api/exercises/search?query={term}
 
 Performs a fuzzy search against exercise names.
 
+Search reuses one index across languages and queries for 60 seconds after a
+successful build. Exercise changes appear on the next search after expiration;
+concurrent searches wait for the same rebuild. Translation labels have their own
+five-minute cache shared with exercise listing, so they refresh even without
+search traffic. Changed labels may take up to six minutes to appear in search
+results (five minutes for translations plus one minute for the index).
+
+An expired cache is refreshed on demand. If a required read fails, the request
+returns the usual HTTP 500 error and the next request retries. No background
+refresh or external cache service is required.
+
+Caches belong to one Node.js process. Vercel/serverless cold starts and process
+restarts reload them, while warm instances expire independently. Updates from
+import scripts in other processes become visible through expiration.
+
 **Query Parameters:**
 
 | Parameter | Type | Default | Description |
