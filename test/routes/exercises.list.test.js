@@ -436,7 +436,7 @@ describe("exercise list database filtering and pagination", () => {
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
       message: errorMessages.fetchError.es,
-      error: "Database unavailable",
     });
+    expect(response.body).not.toHaveProperty("error");
   });
 });
