@@ -37,6 +37,8 @@ describe("exercise list database filtering and pagination", () => {
   beforeEach(() => {
     getTranslations.mockResolvedValue(translations);
     query = {
+      sort: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       lean: jest.fn().mockResolvedValue([buildExercise()]),
@@ -50,6 +52,8 @@ describe("exercise list database filtering and pagination", () => {
     expect(response.status).toBe(200);
     expect(Exercise.find).toHaveBeenCalledTimes(1);
     expect(Exercise.find).toHaveBeenCalledWith({});
+    expect(query.sort).toHaveBeenCalledWith({ _id: 1 });
+    expect(query.select).not.toHaveBeenCalled();
     expect(query.skip).toHaveBeenCalledWith(0);
     expect(query.limit).toHaveBeenCalledWith(50);
     expect(query.lean).toHaveBeenCalledTimes(1);
@@ -75,12 +79,12 @@ describe("exercise list database filtering and pagination", () => {
       });
       expect(response.status).toBe(200);
       expect(Exercise.find).toHaveBeenCalledWith({
-        force: "push",
-        level: "expert",
-        equipment: "kettlebells",
-        category: "strength",
-        primaryMuscles: "chest",
-        secondaryMuscles: "triceps",
+        force: { $in: ["push"] },
+        level: { $in: ["expert"] },
+        equipment: { $in: ["kettlebells"] },
+        category: { $in: ["strength"] },
+        primaryMuscles: { $in: ["chest"] },
+        secondaryMuscles: { $in: ["triceps"] },
       });
       expect(query.skip).toHaveBeenCalledWith(1);
       expect(query.limit).toHaveBeenCalledWith(1);
@@ -119,14 +123,12 @@ describe("exercise list database filtering and pagination", () => {
     async (lang) => {
       query.lean.mockResolvedValue([]);
       for (const page of [0, 3]) {
-        const response = await request(app)
-          .get("/api/exercises")
-          .query({
-            lang,
-            page,
-            limit: 2,
-            force: translations.force_translations.push[lang],
-          });
+        const response = await request(app).get("/api/exercises").query({
+          lang,
+          page,
+          limit: 2,
+          force: translations.force_translations.push[lang],
+        });
         expect(response.status).toBe(404);
         expect(response.body).toEqual({
           message: errorMessages.noResults[lang],
@@ -140,6 +142,13 @@ describe("exercise list database filtering and pagination", () => {
       .get("/api/exercises?page=1&limit=1&fields=equipment,images")
       .set("Accept-Language", "pt-BR");
     expect(response.status).toBe(200);
+    expect(query.select).toHaveBeenCalledWith({
+      _id: 1,
+      id: 1,
+      name: 1,
+      images: 1,
+      equipment: 1,
+    });
     expect(response.body).toEqual([
       {
         _id: "677471841533c77a3a55b4ff",
@@ -183,13 +192,13 @@ describe("exercise list database filtering and pagination", () => {
     expect(collectionFind).toHaveBeenCalledTimes(1);
     expect(collectionFind).toHaveBeenCalledWith(
       {
-        force: "push",
-        primaryMuscles: "chest",
-        secondaryMuscles: "triceps",
+        force: { $in: ["push"] },
+        primaryMuscles: { $in: ["chest"] },
+        secondaryMuscles: { $in: ["triceps"] },
         id: { $eq: "Plyo_Kettlebell_Pushups" },
         mechanic: { $eq: "compound" },
       },
-      expect.objectContaining({ skip: 6, limit: 2 }),
+      expect.objectContaining({ sort: { _id: 1 }, skip: 6, limit: 2 }),
     );
     expect(response.body).toHaveLength(1);
     expect(response.body[0].name).toBe("Flexoes com Kettlebell");
@@ -234,9 +243,9 @@ describe("exercise list database filtering and pagination", () => {
   });
 
   it.each([
-    ["limit=9007199254740992", "invalidLimit"],
-    ["page=9007199254740992", "invalidPage"],
-    ["page=9007199254740991&limit=2", "invalidPage"],
+    ["limit=9007199254740992", "limitTooLarge"],
+    ["page=9007199254740992", "pageTooLarge"],
+    ["limit=101", "limitTooLarge"],
     ["page=-1", "invalidPage"],
     ["limit=0", "invalidLimit"],
   ])(
@@ -246,6 +255,42 @@ describe("exercise list database filtering and pagination", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({ message: errorMessages[message].en });
       expect(Exercise.find).not.toHaveBeenCalled();
+    },
+  );
+
+  it("explains when the page and limit produce an unsafe offset", async () => {
+    const response = await request(app).get(
+      "/api/exercises?page=9007199254740991&limit=2&lang=es",
+    );
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      errorMessages.offsetTooLarge.es.replace("${maxPage}", "4503599627370495"),
+    );
+    expect(Exercise.find).not.toHaveBeenCalled();
+  });
+
+  it.each(["equipment", "primaryMuscles", "secondaryMuscles"])(
+    "queries all slugs sharing a localized label for %s",
+    async (field) => {
+      const collection =
+        field === "equipment"
+          ? "equipment_translations"
+          : "muscle_translations";
+      getTranslations.mockResolvedValue({
+        ...translations,
+        [collection]: {
+          first: { en: "shared" },
+          second: { en: "shared" },
+          other: { en: "other" },
+        },
+      });
+      const response = await request(app)
+        .get("/api/exercises")
+        .query({ [field]: "shared" });
+      expect(response.status).toBe(200);
+      expect(Exercise.find).toHaveBeenCalledWith({
+        [field]: { $in: ["first", "second"] },
+      });
     },
   );
 

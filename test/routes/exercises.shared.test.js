@@ -3,11 +3,13 @@ const {
   defaultLanguage,
   errorMessages,
   extractValues,
+  findSlugsByLocalizedValue,
   getErrorLanguage,
   getHeaderLanguage,
   parseFields,
   parseLanguage,
   parsePagination,
+  maxLimit,
   serializeExercise,
   supportedLanguages,
   validFields,
@@ -144,6 +146,18 @@ describe("exercise shared helpers", () => {
   });
 
   describe("pagination parsing", () => {
+    it("accepts the maximum page size and largest safe offset", () => {
+      expect(parsePagination("0", String(maxLimit), "en")).toEqual({ page: 0, limit: maxLimit });
+      expect(parsePagination(String(Number.MAX_SAFE_INTEGER), "1", "en")).toEqual({ page: Number.MAX_SAFE_INTEGER, limit: 1 });
+      expect(parsePagination("4503599627370495", "2", "en")).toEqual({ page: 4503599627370495, limit: 2 });
+    });
+
+    it.each(supportedLanguages)("explains excessive page, limit and offset values in %s", lang => {
+      expect(parsePagination("9007199254740992", "2", lang).error.body.message).toBe(errorMessages.pageTooLarge[lang]);
+      expect(parsePagination("0", "101", lang).error.body.message).toBe(errorMessages.limitTooLarge[lang]);
+      expect(parsePagination("0", "9007199254740992", lang).error.body.message).toBe(errorMessages.limitTooLarge[lang]);
+      expect(parsePagination("4503599627370496", "2", lang).error.body.message).toBe(errorMessages.offsetTooLarge[lang].replace("${maxPage}", "4503599627370495"));
+    });
     it("uses default pagination values", () => {
       expect(parsePagination(undefined, undefined, "en")).toEqual({
         page: 0,
@@ -175,6 +189,14 @@ describe("exercise shared helpers", () => {
         errorMessages.invalidLimit.pt,
       );
     });
+  });
+
+  it("resolves every slug sharing a localized label without accepting arrays or operators", () => {
+    const translations = { values: { first: { es: "compartido" }, second: { es: "compartido" }, other: { es: "otro" } } };
+    expect(findSlugsByLocalizedValue(translations, "values", "compartido", "es")).toEqual(["first", "second"]);
+    expect(findSlugsByLocalizedValue(translations, "values", ["compartido"], "es")).toEqual([]);
+    expect(findSlugsByLocalizedValue(translations, "values", { $ne: "otro" }, "es")).toEqual([]);
+    expect(findSlugsByLocalizedValue(translations, "missing", "compartido", "es")).toEqual([]);
   });
 
   describe("value extraction and images", () => {

@@ -23,6 +23,8 @@ describe("exercise request language negotiation", () => {
   beforeEach(() => {
     resetCache();
     jest.spyOn(Exercise, "find").mockReturnValue({
+      sort() { return this; },
+      select() { return this; },
       skip() { return this; },
       limit() { return this; },
       lean: async () => [exercise],

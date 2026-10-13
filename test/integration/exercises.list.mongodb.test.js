@@ -20,6 +20,8 @@ const fieldCollections = {
   primaryMuscles: "muscle_translations",
   secondaryMuscles: "muscle_translations",
 };
+// Keep these test fixture slugs aligned with toSlug in
+// scripts/migrate-exercises-to-slugs.js and normalizeKey in scripts/seed-translations.js.
 const toSlug = (value) =>
   typeof value === "string"
     ? value.toLowerCase().replace(/\s+/g, "_").replace(/[^\w]/g, "")
@@ -45,6 +47,18 @@ const combinedFilters = {
   primaryMuscles: "chest",
   secondaryMuscles: "triceps",
 };
+const mongoFilters = Object.fromEntries(
+  Object.entries(combinedFilters).map(([field, slug]) => [
+    field,
+    { $in: [slug] },
+  ]),
+);
+const collisionSlugs = ["issue66_collision_a", "issue66_collision_b"];
+const collisionLabels = {
+  en: "shared label",
+  pt: "rotulo compartilhado",
+  es: "etiqueta compartida",
+};
 
 describeMongoDB("exercise list against real MongoDB", () => {
   const app = express();
@@ -65,7 +79,14 @@ describeMongoDB("exercise list against real MongoDB", () => {
     const client = mongoose.connection.getClient();
     client.on("commandStarted", (event) => {
       if (event.commandName === "find" && event.command.find === "exercises") {
-        commands.push(event.command);
+        commands.push({
+          ...event.command,
+          // The MongoDB driver represents BSON sort documents as Map objects.
+          sort:
+            event.command.sort instanceof Map
+              ? Object.fromEntries(event.command.sort)
+              : event.command.sort,
+        });
       }
     });
     client.on("commandSucceeded", (event) => {
@@ -154,15 +175,40 @@ describeMongoDB("exercise list against real MongoDB", () => {
       id: `Issue66_Distractor_${field}`,
       [field]: field.endsWith("Muscles") ? [] : null,
     }));
-    documents.push(...matches, ...distractors);
-    await Exercise.collection.insertMany(documents);
+    const collisions = collisionSlugs.map((slug, index) => ({
+      ...buildMatchingDocument(index),
+      id: `Issue66_Collision_${index}`,
+      equipment: slug,
+      primaryMuscles: [slug],
+      secondaryMuscles: [slug],
+    }));
+    for (const collection of [
+      "equipment_translations",
+      "muscle_translations",
+    ]) {
+      for (const key of collisionSlugs) {
+        translationDocuments[collection].set(key, {
+          key,
+          translations: collisionLabels,
+        });
+      }
+    }
+    documents.push(...matches, ...distractors, ...collisions);
+    documents = documents.map((document, index) => ({
+      ...document,
+      _id: new mongoose.Types.ObjectId(
+        (index + 1).toString(16).padStart(24, "0"),
+      ),
+    }));
+    // Deliberately insert in reverse _id order so natural order cannot satisfy the tests.
+    await Exercise.collection.insertMany([...documents].reverse());
     for (const [collection, values] of Object.entries(translationDocuments)) {
       await db.collection(collection).insertMany([...values.values()]);
     }
     resetCache();
     await getTranslations();
     console.info(
-      `Real MongoDB ${version.version}: ${catalogCount} catalog exercises + ${matches.length + distractors.length} edge-case fixtures`,
+      `Real MongoDB ${version.version}: ${catalogCount} catalog exercises + ${matches.length + distractors.length + collisions.length} edge-case fixtures`,
     );
   }, 30000);
 
@@ -193,7 +239,12 @@ describeMongoDB("exercise list against real MongoDB", () => {
       documents.slice(6, 9).map((exercise) => exercise.id),
     );
     expect(commands).toHaveLength(1);
-    expect(commands[0]).toMatchObject({ filter: {}, skip: 6, limit: 3 });
+    expect(commands[0]).toMatchObject({
+      filter: {},
+      sort: { _id: 1 },
+      skip: 6,
+      limit: 3,
+    });
     expect(transferredDocuments).toBe(3);
   });
 
@@ -235,7 +286,8 @@ describeMongoDB("exercise list against real MongoDB", () => {
         expect(response.body[0].equipment).toBe(labels.issue66_fixture[lang]);
         expect(commands).toHaveLength(1);
         expect(commands[0]).toMatchObject({
-          filter: combinedFilters,
+          filter: mongoFilters,
+          sort: { _id: 1 },
           skip: page * 2,
           limit: 2,
         });
@@ -247,19 +299,17 @@ describeMongoDB("exercise list against real MongoDB", () => {
   it.each(["en", "pt", "es"])(
     "preserves localized 404 for a page after the last match in %s",
     async (lang) => {
-      const response = await request(app)
-        .get("/api/exercises")
-        .query({
-          lang,
-          equipment: labels.issue66_fixture[lang],
-          force: labels.push[lang],
-          primaryMuscles: labels.chest[lang],
-          secondaryMuscles: labels.triceps[lang],
-          level: labels.expert[lang],
-          category: labels.strength[lang],
-          page: 3,
-          limit: 2,
-        });
+      const response = await request(app).get("/api/exercises").query({
+        lang,
+        equipment: labels.issue66_fixture[lang],
+        force: labels.push[lang],
+        primaryMuscles: labels.chest[lang],
+        secondaryMuscles: labels.triceps[lang],
+        level: labels.expert[lang],
+        category: labels.strength[lang],
+        page: 3,
+        limit: 2,
+      });
       expect(response.status).toBe(404);
       expect(response.body).toEqual({ message: errorMessages.noResults[lang] });
       expect(transferredDocuments).toBe(0);
@@ -308,7 +358,114 @@ describeMongoDB("exercise list against real MongoDB", () => {
         name: expectedName,
         images: ["Issue66_Match_0/0.jpg"],
       });
+      expect(commands.at(-1).projection).toEqual({
+        _id: 1,
+        id: 1,
+        name: 1,
+        images: 1,
+      });
     }
+  });
+
+  it.each(["en", "pt", "es"])(
+    "includes all colliding scalar and muscle slugs across pages in %s",
+    async (lang) => {
+      const filters = await request(app)
+        .get("/api/exercises/filters")
+        .query({ lang });
+      expect(filters.status).toBe(200);
+      expect(
+        filters.body.equipment.filter(
+          (value) => value === collisionLabels[lang],
+        ),
+      ).toHaveLength(1);
+      for (let page = 0; page < 2; page++) {
+        const response = await request(app).get("/api/exercises").query({
+          lang,
+          page,
+          limit: 1,
+          equipment: collisionLabels[lang],
+          primaryMuscles: collisionLabels[lang],
+          secondaryMuscles: collisionLabels[lang],
+        });
+        expect(response.status).toBe(200);
+        expect(response.body.map((exercise) => exercise.id)).toEqual([
+          `Issue66_Collision_${page}`,
+        ]);
+        expect(commands.at(-1).filter).toEqual({
+          equipment: { $in: collisionSlugs },
+          primaryMuscles: { $in: collisionSlugs },
+          secondaryMuscles: { $in: collisionSlugs },
+        });
+      }
+    },
+  );
+
+  it("keeps consecutive pages ordered and disjoint when a filter index is added", async () => {
+    const expectedIds = Array.from(
+      { length: 5 },
+      (_, index) => `Issue66_Match_${index}`,
+    );
+    for (const addIndex of [false, true]) {
+      if (addIndex)
+        await mongoose.connection.db
+          .collection("exercises")
+          .createIndex({ equipment: 1, level: 1, _id: -1 });
+      const actualIds = [];
+      for (let page = 0; page < 3; page++) {
+        const response = await request(app).get("/api/exercises").query({
+          equipment: "test equipment",
+          level: "expert",
+          force: "push",
+          category: "strength",
+          primaryMuscles: "chest",
+          secondaryMuscles: "triceps",
+          page,
+          limit: 2,
+        });
+        expect(response.status).toBe(200);
+        actualIds.push(...response.body.map((exercise) => exercise.id));
+      }
+      expect(actualIds).toEqual(expectedIds);
+      expect(new Set(actualIds).size).toBe(expectedIds.length);
+    }
+  });
+
+  it("bounds the page size and rejects larger requests before querying", async () => {
+    const maximum = await request(app).get("/api/exercises?limit=100");
+    expect(maximum.status).toBe(200);
+    expect(maximum.body).toHaveLength(100);
+    expect(transferredDocuments).toBe(100);
+    commands = [];
+    const excessive = await request(app).get(
+      "/api/exercises?limit=101&lang=es",
+    );
+    expect(excessive.status).toBe(400);
+    expect(excessive.body.message).toBe(errorMessages.limitTooLarge.es);
+    expect(commands).toHaveLength(0);
+  });
+
+  it("fetches only selected data while preserving localization and image recovery", async () => {
+    const response = await request(app).get(
+      "/api/exercises?id=Issue66_Match_0&fields=force,primaryMuscles,instructions&lang=es",
+    );
+    expect(response.status).toBe(200);
+    expect(response.body[0]).toEqual({
+      _id: expect.any(String),
+      name: "Ejercicio de integración 0",
+      force: "empujar",
+      primaryMuscles: ["hombros", "pecho"],
+      instructions: ["Instrucción de prueba"],
+    });
+    expect(commands[0].projection).toEqual({
+      _id: 1,
+      id: 1,
+      name: 1,
+      images: 1,
+      force: 1,
+      primaryMuscles: 1,
+      instructions: 1,
+    });
   });
 
   it.each([
@@ -338,7 +495,8 @@ describeMongoDB("exercise list against real MongoDB", () => {
   );
 
   it("confirms the database execution plan returns only the filtered page", async () => {
-    const explanation = await Exercise.find(combinedFilters)
+    const explanation = await Exercise.find(mongoFilters)
+      .sort({ _id: 1 })
       .skip(2)
       .limit(2)
       .explain("executionStats");

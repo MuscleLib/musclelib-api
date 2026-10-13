@@ -4,7 +4,7 @@ const { getTranslations } = require("../../translationCache");
 const {
   errorMessages,
   filterableFields,
-  findSlugByLocalizedValue,
+  findSlugsByLocalizedValue,
   getLocalizedOptions,
   hydrateExercise,
   parseFields,
@@ -47,13 +47,6 @@ module.exports = async (req, res) => {
   const { page, limit } = parsedPagination;
   const skip = page * limit;
 
-  if (!Number.isSafeInteger(limit)) {
-    return res.status(400).json({ message: errorMessages.invalidLimit[lang] });
-  }
-  if (!Number.isSafeInteger(page) || !Number.isSafeInteger(skip)) {
-    return res.status(400).json({ message: errorMessages.invalidPage[lang] });
-  }
-
   try {
     const translations = await getTranslations();
 
@@ -66,15 +59,15 @@ module.exports = async (req, res) => {
 
       if (filterableFields.includes(key)) {
         const collection = FILTERABLE_FIELD_TO_COLLECTION[key];
-        const slug = findSlugByLocalizedValue(translations, collection, value, lang);
-        if (!slug) {
+        const slugs = findSlugsByLocalizedValue(translations, collection, value, lang);
+        if (slugs.length === 0) {
           return res.status(400).json({
             message: errorMessages.invalidValue[lang].replace("${key}", key),
             avaliableOptions: getLocalizedOptions(translations, collection, lang),
           });
         }
-        // MongoDB scalar equality also matches an element of a muscle array.
-        filters[key] = slug;
+        // $in supports label collisions for both scalar fields and muscle arrays.
+        filters[key] = { $in: slugs };
       } else if (DIRECT_FILTER_FIELDS.has(key) && typeof value === "string") {
         filters[key] = { $eq: value };
       } else {
@@ -88,7 +81,15 @@ module.exports = async (req, res) => {
       return res.status(404).json({ message: errorMessages.noResults[lang] });
     }
 
-    const exercises = await Exercise.find(filters).skip(skip).limit(limit).lean();
+    const query = Exercise.find(filters).sort({ _id: 1 }).skip(skip).limit(limit);
+    if (fields) {
+      // Keep the fields used by localization and source-data recovery.
+      const projection = Object.fromEntries(
+        ["_id", "id", "name", "images", ...fields].map((field) => [field, 1]),
+      );
+      query.select(projection);
+    }
+    const exercises = await query.lean();
 
     if (exercises.length === 0) {
       return res.status(404).json({ message: errorMessages.noResults[lang] });
