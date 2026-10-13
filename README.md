@@ -61,6 +61,8 @@ GET /api/exercises
 
 Returns paginated exercises matching the applied filters.
 
+Filters and pagination run in MongoDB; only the requested page is loaded for localization. Pages are zero-indexed, and an empty page (including one past the last matching exercise) returns the localized 404 response shown below.
+
 **Query Parameters:**
 
 | Parameter | Type | Default | Description |
@@ -75,6 +77,12 @@ Returns paginated exercises matching the applied filters.
 | `category` | `string` | — | Filter by category |
 | `primaryMuscles` | `string` | — | Filter by primary muscle |
 | `secondaryMuscles` | `string` | — | Filter by secondary muscle |
+| `id` | `string` | — | Exact stored exercise ID |
+| `mechanic` | `string` | — | Exact stored mechanic slug (for example, `compound`) |
+
+The six localized filters (`force`, `level`, `equipment`, `category`, `primaryMuscles`, and `secondaryMuscles`) accept a single value in the selected language, as returned by `/api/exercises/filters`. Multiple filters are combined with AND; muscle filters match any element of the respective stored muscle array. Invalid localized values return HTTP 400 with `avaliableOptions`. Unsupported filters still return HTTP 404 and are never passed to MongoDB as query fields or operators.
+
+Pagination values and the offset (`page * limit`) must fit within JavaScript's safe integer range. Values exceeding that range return a localized HTTP 400 validation error.
 
 Valid `fields` values: `name`, `force`, `level`, `mechanic`, `equipment`, `primaryMuscles`, `secondaryMuscles`, `instructions`, `category`, `images`.
 
@@ -251,6 +259,18 @@ GET /docs
 ```
 
 Redirects to the external API documentation site.
+
+## Integration Tests with MongoDB
+
+The real-database list tests are opt-in and require a running test MongoDB server. They do not read the application's `.env`. In PowerShell:
+
+```powershell
+$env:MONGODB_TEST_URI = "mongodb://127.0.0.1:27017"
+npm test -- --runInBand test/integration/exercises.list.mongodb.test.js
+Remove-Item Env:MONGODB_TEST_URI
+```
+
+The suite creates a unique `musclelib_issue66_test_*` database, imports the repository's exercise catalog plus isolated edge-case fixtures and translation collections, and drops only that database during cleanup. It verifies actual MongoDB commands and transferred document counts, as well as combined localized filters, pagination boundaries, field selection, and empty results. Without `MONGODB_TEST_URI`, the integration suite is skipped and the normal unit tests still run.
 
 ## Data Model
 

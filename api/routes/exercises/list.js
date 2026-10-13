@@ -23,6 +23,9 @@ const FILTERABLE_FIELD_TO_COLLECTION = {
   secondaryMuscles:"muscle_translations",
 };
 
+// These stored scalar fields previously supported direct equality filtering.
+const DIRECT_FILTER_FIELDS = new Set(["id", "mechanic"]);
+
 module.exports = async (req, res) => {
   const parsedLanguage = parseLanguage(req.query.lang, req.headers["accept-language"]);
   if (parsedLanguage.error) {
@@ -42,14 +45,21 @@ module.exports = async (req, res) => {
   }
 
   const { page, limit } = parsedPagination;
+  const skip = page * limit;
+
+  if (!Number.isSafeInteger(limit)) {
+    return res.status(400).json({ message: errorMessages.invalidLimit[lang] });
+  }
+  if (!Number.isSafeInteger(page) || !Number.isSafeInteger(skip)) {
+    return res.status(400).json({ message: errorMessages.invalidPage[lang] });
+  }
 
   try {
     const translations = await getTranslations();
 
-    // Resolve each filterable query param to its English slug.
-    // Non-filterable params are kept as direct equality filters.
-    const slugFilters = {};
-    const directFilters = {};
+    // Only known fields and validated scalar values may enter the MongoDB query.
+    const filters = {};
+    let hasUnsupportedFilter = false;
 
     for (const [key, value] of Object.entries(req.query)) {
       if (["lang", "fields", "page", "limit"].includes(key)) continue;
@@ -63,35 +73,29 @@ module.exports = async (req, res) => {
             avaliableOptions: getLocalizedOptions(translations, collection, lang),
           });
         }
-        slugFilters[key] = slug;
+        // MongoDB scalar equality also matches an element of a muscle array.
+        filters[key] = slug;
+      } else if (DIRECT_FILTER_FIELDS.has(key) && typeof value === "string") {
+        filters[key] = { $eq: value };
       } else {
-        directFilters[key] = value;
+        hasUnsupportedFilter = true;
       }
     }
 
-    const allExercises = await Exercise.find({}).lean();
+    // Unknown fields did not match the old in-memory equality checks. Preserve
+    // that response without allowing arbitrary fields or operators into MongoDB.
+    if (hasUnsupportedFilter) {
+      return res.status(404).json({ message: errorMessages.noResults[lang] });
+    }
 
-    const filtered = allExercises
-      .filter((exercise) => {
-        const slugMatch = Object.entries(slugFilters).every(([key, slug]) => {
-          if (key === "primaryMuscles" || key === "secondaryMuscles") {
-            return (exercise[key] || []).includes(slug);
-          }
-          return exercise[key] === slug;
-        });
-        const directMatch = Object.entries(directFilters).every(
-          ([key, value]) => exercise[key] === value,
-        );
-        return slugMatch && directMatch;
-      })
-      .slice(page * limit, page * limit + limit);
+    const exercises = await Exercise.find(filters).skip(skip).limit(limit).lean();
 
-    if (filtered.length === 0) {
+    if (exercises.length === 0) {
       return res.status(404).json({ message: errorMessages.noResults[lang] });
     }
 
     res.json(
-      filtered.map((exercise) =>
+      exercises.map((exercise) =>
         serializeExercise(hydrateExercise(exercise, translations), lang, fields),
       ),
     );

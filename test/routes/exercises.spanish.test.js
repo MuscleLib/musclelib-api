@@ -27,10 +27,16 @@ describe("Spanish exercise vocabulary", () => {
   app.use("/api/exercises", routes);
   beforeEach(() => {
     resetCache();
-    jest.spyOn(Exercise, "find").mockReturnValue({ lean: async () => [
+    const exercises = [
       { id: "Test_Barbell", name: { en: "Squat", es: "Sentadilla con barra" }, equipment: "barbell", category: "strength", primaryMuscles: ["abductors"], secondaryMuscles: ["traps", "calves", "lats"] },
       { id: "Test_Dumbbell", name: { en: "Dumbbell Squat", es: "Sentadilla con mancuerna" }, equipment: "dumbbell", category: "strength", primaryMuscles: [], secondaryMuscles: [] },
-    ] });
+    ];
+    jest.spyOn(Exercise, "find").mockImplementation((filters = {}) => ({
+      skip() { return this; },
+      limit() { return this; },
+      lean: async () => exercises.filter(exercise =>
+        Object.entries(filters).every(([field, value]) => exercise[field] === value)),
+    }));
   });
   afterEach(() => jest.restoreAllMocks());
 
