@@ -5,6 +5,7 @@ const nodeGlobals = {
   __dirname: "readonly",
   Buffer: "readonly",
   console: "readonly",
+  fetch: "readonly",
   global: "readonly",
   module: "readonly",
   process: "readonly",

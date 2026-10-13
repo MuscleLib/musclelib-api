@@ -139,6 +139,6 @@ describe("GET /api/exercises/filters", () => {
     const response = await request(app).get("/api/exercises/filters");
     expect(response.status).toBe(500);
     expect(response.body.message).toBe("Error fetching exercises.");
-    expect(response.body.error).toBe("DB connection lost");
+    expect(response.body).not.toHaveProperty("error");
   });
 });

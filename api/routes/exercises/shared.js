@@ -311,11 +311,11 @@ const parsePagination = (pageParam, limitParam, lang) => {
         : errorMessages.invalidPage[lang],
     );
   }
-  if (!Number.isSafeInteger(limit) || limit < 1) {
-    return validationError(errorMessages.invalidLimit[lang]);
-  }
   if (limit > maxLimit) {
     return validationError(errorMessages.limitTooLarge[lang]);
+  }
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    return validationError(errorMessages.invalidLimit[lang]);
   }
 
   if (!Number.isSafeInteger(page * limit)) {
