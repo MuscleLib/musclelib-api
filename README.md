@@ -1,6 +1,6 @@
 # MuscleLib API
 
-![Version](https://img.shields.io/badge/version-2.1.0-orange.svg) ![Node.js](https://img.shields.io/badge/node.js-%3E%3D20%20%3C23-green.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.0-orange.svg) ![Node.js](https://img.shields.io/badge/node.js-%3E%3D20%20%3C23-green.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## About
 
@@ -36,10 +36,25 @@ Search uses **fuzzy matching** via Fuse.js, so you don't need exact spelling. Fi
 ## Base URL
 
 ```
-https://musclelib-api.vercel.app
+https://libapi.vercel.app
 ```
 
-> All endpoints below use this base URL. Replace with `http://localhost:5000` for local development.
+> All production examples use this verified production URL. For local development, set `PORT=5000` in your `.env` file and use `http://localhost:5000`. The server reads its port from `process.env.PORT` and does not define a default port.
+
+## Local Development
+
+The application loads environment variables from `.env`. At minimum, configure `PORT`, `MONGODB_URI`, `MONGODB_NAME`, and `DOCS` before starting the server. Example local port configuration:
+
+```dotenv
+PORT=5000
+```
+
+Install dependencies and start the development server:
+
+```bash
+npm ci
+npm run dev
+```
 
 ## API Endpoints
 
@@ -100,7 +115,7 @@ Likewise, send `page` and `limit` at most once each. A repeated `page` or `limit
 
 **Example:**
 ```bash
-curl "https://musclelib-api.vercel.app/api/exercises?lang=en&page=0&limit=5&force=pull"
+curl "https://libapi.vercel.app/api/exercises?lang=en&page=0&limit=5&force=pull"
 ```
 
 **Response (200):**
@@ -135,7 +150,7 @@ curl "https://musclelib-api.vercel.app/api/exercises?lang=en&page=0&limit=5&forc
 
 **Response (400 — unsupported query parameter):**
 ```bash
-curl "https://musclelib-api.vercel.app/api/exercises?muscle=chest"
+curl "https://libapi.vercel.app/api/exercises?muscle=chest"
 ```
 ```json
 {
@@ -179,7 +194,7 @@ import scripts in other processes become visible through expiration.
 
 **Example:**
 ```bash
-curl "https://musclelib-api.vercel.app/api/exercises/search?query=squat&lang=en"
+curl "https://libapi.vercel.app/api/exercises/search?query=squat&lang=en"
 ```
 
 **Response (200):**
@@ -224,7 +239,7 @@ Returns all available filter values aggregated from the database.
 
 **Example:**
 ```bash
-curl "https://musclelib-api.vercel.app/api/exercises/filters?lang=en"
+curl "https://libapi.vercel.app/api/exercises/filters?lang=en"
 ```
 
 **Response (200):**
@@ -259,7 +274,7 @@ Serves an exercise image directly. Each exercise has two images (`0.jpg` and `1.
 
 **Example:**
 ```bash
-curl "https://musclelib-api.vercel.app/api/exercises/Barbell_Curl/0.jpg" -o image.jpg
+curl "https://libapi.vercel.app/api/exercises/Barbell_Curl/0.jpg" -o image.jpg
 ```
 
 **Response:** JPEG image (200) or JSON error (400).
@@ -276,7 +291,7 @@ Returns total exercise and image counts.
 
 **Example:**
 ```bash
-curl "https://musclelib-api.vercel.app/stats"
+curl "https://libapi.vercel.app/stats"
 ```
 
 **Response (200):**
