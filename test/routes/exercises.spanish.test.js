@@ -2,6 +2,7 @@ const express = require("express");
 const request = require("supertest");
 const Exercise = require("../../api/Exercise");
 const { resetCache } = require("../../api/translationCache");
+const { resetSearchIndex } = require("../../api/searchIndexCache");
 const routes = require("../../api/exerciseRoutes");
 
 const mockDocs = {
@@ -35,6 +36,7 @@ describe("Spanish exercise vocabulary", () => {
   });
   beforeEach(() => {
     resetCache();
+    resetSearchIndex();
     exercises = [
       { id: "Test_Barbell", name: { en: "Squat", es: "Sentadilla con barra" }, equipment: "barbell", category: "strength", primaryMuscles: ["abductors"], secondaryMuscles: ["traps", "calves", "lats"] },
       { id: "Test_Dumbbell", name: { en: "Dumbbell Squat", es: "Sentadilla con mancuerna" }, equipment: "dumbbell", category: "strength", primaryMuscles: [], secondaryMuscles: [] },
