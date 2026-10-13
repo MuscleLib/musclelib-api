@@ -10,11 +10,9 @@ const COLLECTIONS = [
   "muscle_translations",
 ];
 
-let cache = null;
+let cache = {};
 
-const getTranslations = async () => {
-  if (cache) return cache;
-
+const loadTranslations = async () => {
   const result = {};
   for (const col of COLLECTIONS) {
     const model = Translation(col);
@@ -25,12 +23,25 @@ const getTranslations = async () => {
     }
   }
 
-  cache = result;
-  return cache;
+  return result;
+};
+
+const getTranslations = async ({ refresh = false } = {}) => {
+  const current = cache;
+  if (current.pending) return current.pending;
+  if (current.value && !refresh) return current.value;
+
+  current.pending = loadTranslations();
+  try {
+    current.value = await current.pending;
+    return current.value;
+  } finally {
+    current.pending = null;
+  }
 };
 
 const resetCache = () => {
-  cache = null;
+  cache = {};
 };
 
 module.exports = { getTranslations, resetCache };

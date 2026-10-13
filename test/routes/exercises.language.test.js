@@ -2,6 +2,7 @@ const express = require("express");
 const request = require("supertest");
 const Exercise = require("../../api/Exercise");
 const { resetCache } = require("../../api/translationCache");
+const { resetSearchIndex } = require("../../api/searchIndexCache");
 const routes = require("../../api/exerciseRoutes");
 
 jest.mock("../../api/Translation", () => collection => ({
@@ -22,6 +23,7 @@ describe("exercise request language negotiation", () => {
 
   beforeEach(() => {
     resetCache();
+    resetSearchIndex();
     jest.spyOn(Exercise, "find").mockReturnValue({ lean: async () => [exercise] });
   });
   afterEach(() => jest.restoreAllMocks());

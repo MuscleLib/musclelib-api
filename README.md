@@ -125,6 +125,24 @@ GET /api/exercises/search?query={term}
 
 Performs a fuzzy search against exercise names.
 
+The search index and its hydrated exercise data are cached in memory for 60 seconds
+after each successful build. One Fuse.js index covers all three languages and is
+shared across queries and field selections; search responses are not cached.
+The first search after expiration waits for a rebuild that reloads exercises and
+all translation collections from MongoDB. Concurrent searches share that rebuild,
+including when the catalog is empty. Exercise additions, edits, deletions and
+translation changes become visible on this next rebuild. A failed rebuild returns
+the usual HTTP 500 search error and is retried by the next search; expired results
+are not served. No background timers or external cache service are used.
+
+This cache belongs to a single Node.js process. Vercel/serverless cold starts and
+process restarts rebuild it, and separate warm instances expire independently.
+Changes are therefore eventually visible, with no cross-instance invalidation.
+Only one current hydrated catalog and index are retained per process, without
+additional copies per language or query. Internal callers may use
+`resetSearchIndex()` from `api/searchIndexCache.js` to invalidate that process's
+index immediately; the next search reloads both exercises and translations.
+
 **Query Parameters:**
 
 | Parameter | Type | Default | Description |

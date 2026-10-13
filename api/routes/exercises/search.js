@@ -1,12 +1,7 @@
-const Fuse = require("fuse.js");
-
-const Exercise = require("../../Exercise");
-const { getTranslations } = require("../../translationCache");
+const { getSearchIndex } = require("../../searchIndexCache");
 const {
   buildImagePaths,
   errorMessages,
-  fuseOptions,
-  hydrateExercise,
   parseFields,
   parseLanguage,
   serializeExercise,
@@ -32,12 +27,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const translations = await getTranslations();
-    const exercises = (await Exercise.find().lean()).map((ex) =>
-      hydrateExercise(ex, translations),
-    );
-
-    const fuse = new Fuse(exercises, fuseOptions);
+    const fuse = await getSearchIndex();
     const results = fuse.search(query);
 
     if (results.length === 0) {
