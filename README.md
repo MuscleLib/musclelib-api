@@ -26,7 +26,7 @@ Search uses **fuzzy matching** via Fuse.js, so you don't need exact spelling. Fi
 - **Exercise Listing** — Paginated list with configurable page and limit
 - **Fuzzy Search** — Typo-tolerant search via Fuse.js
 - **Multilingual** — Native support for English, Portuguese (PT-BR), and Spanish
-- **Advanced Filters** — Filter by force, level, equipment, category, and muscles
+- **Advanced Filters** — Filter by force, level, mechanic, equipment, category, and muscles
 - **Field Selection** — Request only the fields you need to reduce payload
 - **Exercise Images** — Two high-quality images per exercise
 - **Filter Options** — Discover available filter values via `/filters` endpoint
@@ -61,24 +61,40 @@ GET /api/exercises
 
 Returns paginated exercises matching the applied filters.
 
+Filters and pagination run in MongoDB; only the requested page is loaded for localization. Results are ordered by ascending MongoDB `_id` before pagination. Pages are zero-indexed, and an empty page (including one past the last matching exercise) returns the localized 404 response shown below. With `fields`, MongoDB fetches the requested fields plus `_id`, `id`, `name`, and `images` required for serialization and source-data recovery.
+
 **Query Parameters:**
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `lang` | `string` | `Accept-Language` or `"en"` | Language: `"en"`, `"pt"`, or `"es"` |
 | `page` | `integer` | `0` | Page number (zero-indexed) |
-| `limit` | `integer` | `50` | Items per page |
+| `limit` | `integer` | `50` | Items per page, from 1 to 100 |
 | `fields` | `string` | all fields | Comma-separated fields to return |
 | `force` | `string` | — | Filter by force type |
 | `level` | `string` | — | Filter by level |
+| `mechanic` | `string` | — | Filter by mechanic |
 | `equipment` | `string` | — | Filter by equipment |
 | `category` | `string` | — | Filter by category |
 | `primaryMuscles` | `string` | — | Filter by primary muscle |
 | `secondaryMuscles` | `string` | — | Filter by secondary muscle |
+| `id` | `string` | — | Exact stored exercise ID |
+
+The seven localized filters (`force`, `level`, `mechanic`, `equipment`, `category`, `primaryMuscles`, and `secondaryMuscles`) accept a single value in the selected language, as returned by `/api/exercises/filters`. A display label shared by multiple stored slugs matches all of them. Multiple filters are combined with AND; muscle filters match any element of the respective stored muscle array. Invalid localized values return HTTP 400 with `avaliableOptions`. `id` matches a single stored exercise ID exactly.
+
+For compatibility with callers written before `mechanic` was localized, `mechanic` also accepts its stored slug in any language (for example, `?lang=pt&mechanic=compound`); the stored slugs are the English labels `compound` and `isolation`. A label in the selected language takes precedence over a slug. The other localized filters accept only labels in the selected language.
+
+Only the parameters in the table above are accepted, and `id` may appear only once. Any other query parameter (including misspelled names such as `Force`, or operator-shaped keys such as `force[$ne]`) returns a localized HTTP 400 that lists the rejected names in `invalidParameters` and the accepted parameters in `message`. Arbitrary query fields or operators are never passed to MongoDB.
+
+> **Behavior change:** previously, unknown query parameters (and a repeated `id`) returned HTTP 404 `No exercises found.`, and `mechanic` only matched its stored slug: localized labels such as `composto` and unknown values both returned 404. Unknown parameters now return HTTP 400 with `invalidParameters`; `mechanic` accepts localized labels, and unknown `mechanic` values return HTTP 400 with `avaliableOptions`. HTTP 404 is now reserved for valid requests with no matching exercises on the requested page.
+
+The maximum `limit` is now **100**; larger values return a localized HTTP 400 error rather than being silently clamped. The `page` value and offset (`page * limit`) must fit within JavaScript's safe integer range (maximum `9007199254740991`). Excessive pages have a dedicated localized error, and excessive offsets report the maximum page allowed for the requested limit.
 
 Valid `fields` values: `name`, `force`, `level`, `mechanic`, `equipment`, `primaryMuscles`, `secondaryMuscles`, `instructions`, `category`, `images`.
 
 Send field selection as one comma-separated parameter (for example, `fields=name,images`). Repeated `fields` parameters return a JSON validation error with HTTP 400 in both listing and search.
+
+Likewise, send `page` and `limit` at most once each. A repeated `page` or `limit` (for example, `page=1&page=2`) returns the localized invalid `page` or `limit` error with HTTP 400; previously the first value was silently used.
 
 **Example:**
 ```bash
@@ -112,6 +128,17 @@ curl "https://musclelib-api.vercel.app/api/exercises?lang=en&page=0&limit=5&forc
 ```json
 {
   "message": "No exercises found."
+}
+```
+
+**Response (400 — unsupported query parameter):**
+```bash
+curl "https://musclelib-api.vercel.app/api/exercises?muscle=chest"
+```
+```json
+{
+  "message": "Invalid query parameter(s). Valid parameters are: lang, page, limit, fields, force, level, mechanic, equipment, category, primaryMuscles, secondaryMuscles, id.",
+  "invalidParameters": ["muscle"]
 }
 ```
 
@@ -203,6 +230,7 @@ curl "https://musclelib-api.vercel.app/api/exercises/filters?lang=en"
 {
   "force": ["push", "pull", "static"],
   "level": ["beginner", "intermediate", "expert"],
+  "mechanic": ["compound", "isolation"],
   "category": ["barbell", "dumbbell", "machine", "cables", "body only", ...],
   "equipment": ["barbell", "dumbbell", "body only", "cable", "ez-bar", ...],
   "primaryMuscles": ["biceps", "triceps", "quadriceps", "chest", "back", ...],
@@ -267,6 +295,18 @@ GET /docs
 
 Redirects to the external API documentation site.
 
+## Integration Tests with MongoDB
+
+The real-database list tests are opt-in and require a running test MongoDB server. They do not read the application's `.env`. In PowerShell:
+
+```powershell
+$env:MONGODB_TEST_URI = "mongodb://127.0.0.1:27017"
+npm test -- --runInBand test/integration/exercises.list.mongodb.test.js
+Remove-Item Env:MONGODB_TEST_URI
+```
+
+The suite creates a unique `musclelib_issue66_test_*` database, imports the repository's exercise catalog plus isolated edge-case fixtures and translation collections, and drops only that database during cleanup. It verifies actual MongoDB commands and transferred document counts, as well as combined localized filters (including every `mechanic` value advertised by `/filters`), rejected query parameters, pagination boundaries, field selection, and empty results. Without `MONGODB_TEST_URI`, the integration suite is skipped and the normal unit tests still run.
+
 ## Data Model
 
 ### Stored Format (MongoDB)
@@ -298,7 +338,7 @@ Exercise documents keep stable slugs for shared attributes and localized values 
 }
 ```
 
-Shared values such as force, level, equipment, category, and muscles are resolved through translation collections containing `en`, `pt`, and `es`.
+Shared values such as force, level, mechanic, equipment, category, and muscles are resolved through translation collections containing `en`, `pt`, and `es`.
 ### Serialized Response
 
 When returned via the API, localized fields are flattened to the requested language:

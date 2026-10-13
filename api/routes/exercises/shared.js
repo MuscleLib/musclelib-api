@@ -1,6 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
+const maxLimit = 100;
+const maxPaginationValue = Number.MAX_SAFE_INTEGER;
+
 const errorMessages = {
   invalidLang: {
     en: "Invalid language. Use 'en', 'pt' or 'es'.",
@@ -16,6 +19,11 @@ const errorMessages = {
     en: "Invalid field(s). Valid fields are:",
     pt: "Campo(s) inválido(s). Campos válidos são:",
     es: "Campo(s) no válido(s). Los campos válidos son:",
+  },
+  invalidQueryParameters: {
+    en: "Invalid query parameter(s). Valid parameters are:",
+    pt: "Parâmetro(s) de consulta inválido(s). Parâmetros válidos são:",
+    es: "Parámetro(s) de consulta no válido(s). Los parámetros válidos son:",
   },
   missingQuery: {
     en: "Please provide a search term.",
@@ -36,6 +44,21 @@ const errorMessages = {
     en: "parameter 'limit' is invalid. use a value greater than 0.",
     pt: "Parâmetro 'limit' inválido. use um valor maior que 0",
     es: "Parámetro 'limit' no válido. use un valor mayor que 0",
+  },
+  pageTooLarge: {
+    en: `The 'page' parameter must not exceed ${maxPaginationValue}.`,
+    pt: `O parâmetro 'page' não pode exceder ${maxPaginationValue}.`,
+    es: `El parámetro 'page' no puede superar ${maxPaginationValue}.`,
+  },
+  limitTooLarge: {
+    en: `The 'limit' parameter must not exceed ${maxLimit}.`,
+    pt: `O parâmetro 'limit' não pode exceder ${maxLimit}.`,
+    es: `El parámetro 'limit' no puede superar ${maxLimit}.`,
+  },
+  offsetTooLarge: {
+    en: "The pagination offset (page * limit) is too large. With this limit, page must not exceed ${maxPage}.",
+    pt: "O deslocamento da paginação (page * limit) é muito grande. Com este limite, page não pode exceder ${maxPage}.",
+    es: "El desplazamiento de paginación (page * limit) es demasiado grande. Con este límite, page no puede superar ${maxPage}.",
   },
   invalidValue: {
     en: "The ${key} provided is incorrect or does not exist in the database. Try:",
@@ -98,14 +121,31 @@ const validFields = [
 ];
 const validFieldSet = new Set(validFields);
 
+// Ordered as documented, since the unknown-parameter error lists them.
 const filterableFields = [
-  "primaryMuscles",
-  "secondaryMuscles",
-  "level",
   "force",
+  "level",
+  "mechanic",
   "equipment",
   "category",
+  "primaryMuscles",
+  "secondaryMuscles",
 ];
+
+// Stored scalar fields matched by exact equality instead of a localized label.
+const directFilterFields = ["id"];
+const directFilterFieldSet = new Set(directFilterFields);
+
+// Every query parameter accepted by the exercise list; anything else is rejected.
+const validListParameters = [
+  "lang",
+  "page",
+  "limit",
+  "fields",
+  ...filterableFields,
+  ...directFilterFields,
+];
+const validListParameterSet = new Set(validListParameters);
 
 const languageSet = new Set(supportedLanguages);
 const excludedExtractedValues = new Set(supportedLanguages);
@@ -130,6 +170,7 @@ const fuseOptions = {
 const defaultImageFormatter = (exercise) => exercise.images;
 const sourceExerciseCache = new Map();
 const formatValidFields = () => `${validFields.join(", ")}.`;
+const formatValidListParameters = () => `${validListParameters.join(", ")}.`;
 const validationError = (message, extraBody = {}) => ({
   error: {
     status: 400,
@@ -208,20 +249,64 @@ const parseFields = (rawFields, lang) => {
   return { fields };
 };
 
+// Rejects unknown names, including operator-shaped keys such as "force[$ne]",
+// and repeated direct filters before anything reaches MongoDB.
+const parseListParameters = (query, lang) => {
+  const invalidParameters = Object.entries(query)
+    .filter(
+      ([key, value]) =>
+        !validListParameterSet.has(key) ||
+        (directFilterFieldSet.has(key) && typeof value !== "string"),
+    )
+    .map(([key]) => key);
+
+  if (invalidParameters.length > 0) {
+    return validationError(
+      `${errorMessages.invalidQueryParameters[lang]} ${formatValidListParameters()}`,
+      {
+        invalidParameters,
+      },
+    );
+  }
+
+  return {};
+};
+
 const parsePagination = (pageParam, limitParam, lang) => {
   if (pageParam === "" || limitParam === "") {
     return validationError(errorMessages.invalideParamettersPageLimit[lang]);
   }
 
-  const page = pageParam ? Number.parseInt(pageParam, 10) : defaultPage;
+  // A repeated parameter arrives as an array, which parseInt would silently
+  // reduce to its first value ("1,2" -> 1).
+  if (pageParam !== undefined && typeof pageParam !== "string") {
+    return validationError(errorMessages.invalidPage[lang]);
+  }
+  if (limitParam !== undefined && typeof limitParam !== "string") {
+    return validationError(errorMessages.invalidLimit[lang]);
+  }
+
+  const page = pageParam ?Number.parseInt(pageParam, 10) : defaultPage;
   const limit = limitParam ? Number.parseInt(limitParam, 10) : defaultLimit;
 
+  if (page > maxPaginationValue) {
+    return validationError(errorMessages.pageTooLarge[lang]);
+  }
   if (pageParam && (!Number.isInteger(page) || page < 0)) {
     return validationError(errorMessages.invalidPage[lang]);
   }
 
+  if (limit > maxLimit) {
+    return validationError(errorMessages.limitTooLarge[lang]);
+  }
   if (limitParam && (!Number.isInteger(limit) || limit < 1)) {
     return validationError(errorMessages.invalidLimit[lang]);
+  }
+
+  if (!Number.isSafeInteger(page * limit)) {
+    return validationError(errorMessages.offsetTooLarge[lang].replace(
+      "${maxPage}", String(Math.floor(maxPaginationValue / limit)),
+    ));
   }
 
   return { page, limit };
@@ -448,13 +533,11 @@ const hydrateExercise = (exercise, translations) => {
   return hydrated;
 };
 
-// Returns the slug key for a localized value within a translation collection, or null.
-const findSlugByLocalizedValue = (translations, collection, value, lang) => {
-  for (const [slug, t] of Object.entries(translations[collection] || {})) {
-    if (t[lang] === value) return slug;
-  }
-  return null;
-};
+// Different stored slugs can share a display label in the selected language.
+const findSlugsByLocalizedValue = (translations, collection, value, lang) =>
+  Object.entries(translations[collection] || {})
+    .filter(([, translation]) => translation[lang] === value)
+    .map(([slug]) => slug);
 
 // Returns all localized display values for a collection in the requested language.
 const getLocalizedOptions = (translations, collection, lang) =>
@@ -466,20 +549,24 @@ const getLocalizedOptions = (translations, collection, lang) =>
 module.exports = {
   buildImagePaths,
   defaultLanguage,
+  directFilterFields,
   errorMessages,
   extractValues,
   filterableFields,
-  findSlugByLocalizedValue,
+  findSlugsByLocalizedValue,
   fuseOptions,
   getErrorLanguage,
   getHeaderLanguage,
   getLocalizedOptions,
   hydrateExercise,
+  maxLimit,
   parseFields,
   parseLanguage,
+  parseListParameters,
   parsePagination,
   normalizeExerciseData,
   serializeExercise,
   supportedLanguages,
   validFields,
+  validListParameters,
 };

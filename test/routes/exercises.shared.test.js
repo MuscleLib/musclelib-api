@@ -3,14 +3,19 @@ const {
   defaultLanguage,
   errorMessages,
   extractValues,
+  filterableFields,
+  findSlugsByLocalizedValue,
   getErrorLanguage,
   getHeaderLanguage,
   parseFields,
   parseLanguage,
+  parseListParameters,
   parsePagination,
+  maxLimit,
   serializeExercise,
   supportedLanguages,
   validFields,
+  validListParameters,
 } = require("../../api/routes/exercises/shared");
 
 const exercise = {
@@ -143,7 +148,79 @@ describe("exercise shared helpers", () => {
     });
   });
 
+  describe("list parameter parsing", () => {
+    it("accepts control parameters, localized filters including mechanic, and id", () => {
+      expect(filterableFields).toEqual([
+        "force",
+        "level",
+        "mechanic",
+        "equipment",
+        "category",
+        "primaryMuscles",
+        "secondaryMuscles",
+      ]);
+      expect(validListParameters).toEqual([
+        "lang",
+        "page",
+        "limit",
+        "fields",
+        ...filterableFields,
+        "id",
+      ]);
+      expect(
+        parseListParameters(
+          Object.fromEntries(validListParameters.map((key) => [key, "value"])),
+          "en",
+        ),
+      ).toEqual({});
+      expect(parseListParameters({}, "en")).toEqual({});
+    });
+
+    it.each(supportedLanguages)(
+      "lists invalid parameters and valid parameters in %s",
+      (lang) => {
+        expect(errorMessages.invalidQueryParameters[lang]).toMatch(/\S/);
+        expect(
+          parseListParameters(
+            { force: "push", unknown: "value", "force[$ne]": "push", $where: "1" },
+            lang,
+          ),
+        ).toEqual({
+          error: {
+            status: 400,
+            body: {
+              message: `${errorMessages.invalidQueryParameters[lang]} lang, page, limit, fields, force, level, mechanic, equipment, category, primaryMuscles, secondaryMuscles, id.`,
+              invalidParameters: ["unknown", "force[$ne]", "$where"],
+            },
+          },
+        });
+      },
+    );
+
+    it.each([["first", "second"], { $ne: "first" }])(
+      "rejects a direct filter that is not a single string: %p",
+      (id) => {
+        expect(
+          parseListParameters({ id, force: ["push", "pull"] }, "en").error.body
+            .invalidParameters,
+        ).toEqual(["id"]);
+      },
+    );
+  });
+
   describe("pagination parsing", () => {
+    it("accepts the maximum page size and largest safe offset", () => {
+      expect(parsePagination("0", String(maxLimit), "en")).toEqual({ page: 0, limit: maxLimit });
+      expect(parsePagination(String(Number.MAX_SAFE_INTEGER), "1", "en")).toEqual({ page: Number.MAX_SAFE_INTEGER, limit: 1 });
+      expect(parsePagination("4503599627370495", "2", "en")).toEqual({ page: 4503599627370495, limit: 2 });
+    });
+
+    it.each(supportedLanguages)("explains excessive page, limit and offset values in %s", lang => {
+      expect(parsePagination("9007199254740992", "2", lang).error.body.message).toBe(errorMessages.pageTooLarge[lang]);
+      expect(parsePagination("0", "101", lang).error.body.message).toBe(errorMessages.limitTooLarge[lang]);
+      expect(parsePagination("0", "9007199254740992", lang).error.body.message).toBe(errorMessages.limitTooLarge[lang]);
+      expect(parsePagination("4503599627370496", "2", lang).error.body.message).toBe(errorMessages.offsetTooLarge[lang].replace("${maxPage}", "4503599627370495"));
+    });
     it("uses default pagination values", () => {
       expect(parsePagination(undefined, undefined, "en")).toEqual({
         page: 0,
@@ -167,6 +244,24 @@ describe("exercise shared helpers", () => {
       );
     });
 
+    it.each([
+      [["1", "2"], "10", "invalidPage"],
+      [["0", ""], "10", "invalidPage"],
+      [{ $gt: "0" }, "10", "invalidPage"],
+      ["0", ["5", "10"], "invalidLimit"],
+      ["0", ["5", "x"], "invalidLimit"],
+      [["1", "2"], ["5", "10"], "invalidPage"],
+    ])("rejects repeated or non-string pagination: page %p, limit %p", (page, limit, message) => {
+      supportedLanguages.forEach((lang) => {
+        expect(parsePagination(page, limit, lang)).toEqual({
+          error: {
+            status: 400,
+            body: { message: errorMessages[message][lang] },
+          },
+        });
+      });
+    });
+
     it("rejects negative page and zero limit values", () => {
       expect(parsePagination("-1", "10", "en").error.body.message).toBe(
         errorMessages.invalidPage.en,
@@ -175,6 +270,14 @@ describe("exercise shared helpers", () => {
         errorMessages.invalidLimit.pt,
       );
     });
+  });
+
+  it("resolves every slug sharing a localized label without accepting arrays or operators", () => {
+    const translations = { values: { first: { es: "compartido" }, second: { es: "compartido" }, other: { es: "otro" } } };
+    expect(findSlugsByLocalizedValue(translations, "values", "compartido", "es")).toEqual(["first", "second"]);
+    expect(findSlugsByLocalizedValue(translations, "values", ["compartido"], "es")).toEqual([]);
+    expect(findSlugsByLocalizedValue(translations, "values", { $ne: "otro" }, "es")).toEqual([]);
+    expect(findSlugsByLocalizedValue(translations, "missing", "compartido", "es")).toEqual([]);
   });
 
   describe("value extraction and images", () => {

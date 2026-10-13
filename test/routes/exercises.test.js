@@ -24,6 +24,8 @@ const buildTranslations = () => ({
 });
 
 const createFindStub = (exercise) => ({
+  sort() { return this; },
+  select() { return this; },
   skip() { return this; },
   limit() { return this; },
   async lean() { return [exercise]; },
@@ -113,6 +115,20 @@ describe("exercise routes", () => {
     expect(response.body[0].level).toBe("expert");
   });
 
+  it("filters by localized mechanic", async () => {
+    seedStubs();
+    const response = await request(app).get("/api/exercises?mechanic=composto&lang=pt");
+    expect(response.status).toBe(200);
+    expect(response.body[0].mechanic).toBe("composto");
+  });
+
+  it("returns 400 for unknown query parameters", async () => {
+    seedStubs();
+    const response = await request(app).get("/api/exercises?muscle=chest");
+    expect(response.status).toBe(400);
+    expect(response.body.invalidParameters).toEqual(["muscle"]);
+  });
+
   it("filters by equipment", async () => {
     seedStubs();
     const response = await request(app).get("/api/exercises?equipment=kettlebells");
@@ -156,6 +172,9 @@ describe("exercise routes", () => {
     createTranslationModelStub("level_translations", [
       { translations: { en: "expert", pt: "avancado" } },
     ]);
+    createTranslationModelStub("mechanic_translations", [
+      { translations: { en: "compound", pt: "composto" } },
+    ]);
     createTranslationModelStub("category_translations", [
       { translations: { en: "strength", pt: "forca" } },
     ]);
@@ -172,6 +191,7 @@ describe("exercise routes", () => {
     expect(response.body).toEqual({
       force: ["empurrar"],
       level: ["avancado"],
+      mechanic: ["composto"],
       category: ["forca"],
       equipment: ["kettlebells"],
       primaryMuscles: ["peito"],
