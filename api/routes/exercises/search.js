@@ -5,6 +5,7 @@ const {
   parseFields,
   parseLanguage,
   serializeExercise,
+  logInternalError,
 } = require("./shared");
 
 module.exports = async (req, res) => {
@@ -53,10 +54,9 @@ module.exports = async (req, res) => {
 
     res.json({ exercises: matchedExercises });
   } catch (err) {
-    console.error(`${errorMessages.searchError[lang]}: ${err.message}`);
+    logInternalError("[exercise-search] Failed to search exercises", err);
     res.status(500).json({
       message: errorMessages.searchError[lang],
-      error: err.message,
     });
   }
 };
