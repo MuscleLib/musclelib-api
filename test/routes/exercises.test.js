@@ -101,6 +101,19 @@ describe("exercise routes", () => {
     );
   });
 
+  it.each([
+    ["limit=1000000", "The 'limit' parameter must not exceed 100."],
+    ["limit=10abc", "parameter 'limit' is invalid. use a value greater than 0"],
+    ["page=1abc", "parameter 'page' is invalid. use a value greater than or equal to 0."],
+    ["page=-1", "parameter 'page' is invalid. use a value greater than or equal to 0."],
+    ["page=9007199254740992", "The 'page' parameter must not exceed 9007199254740991."],
+    ["limit=1&limit=2", "parameter 'limit' is invalid. use a value greater than 0"],
+  ])("rejects invalid pagination input %s", async (query, message) => {
+    const response = await request(app).get(`/api/exercises?${query}`);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(message);
+  });
+
   it("filters by force", async () => {
     seedStubs();
     const response = await request(app).get("/api/exercises?force=push");
