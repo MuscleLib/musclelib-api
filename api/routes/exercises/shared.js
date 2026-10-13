@@ -575,6 +575,7 @@ module.exports = {
   getLocalizedOptions,
   hydrateExercise,
   maxLimit,
+  logInternalError,
   parseFields,
   parseLanguage,
   parseListParameters,
