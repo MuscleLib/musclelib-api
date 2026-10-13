@@ -1,6 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
+const maxLimit = 100;
+const maxPaginationValue = Number.MAX_SAFE_INTEGER;
+
 const errorMessages = {
   invalidLang: {
     en: "Invalid language. Use 'en', 'pt' or 'es'.",
@@ -36,6 +39,21 @@ const errorMessages = {
     en: "parameter 'limit' is invalid. use a value greater than 0.",
     pt: "Parâmetro 'limit' inválido. use um valor maior que 0",
     es: "Parámetro 'limit' no válido. use un valor mayor que 0",
+  },
+  pageTooLarge: {
+    en: `The 'page' parameter must not exceed ${maxPaginationValue}.`,
+    pt: `O parâmetro 'page' não pode exceder ${maxPaginationValue}.`,
+    es: `El parámetro 'page' no puede superar ${maxPaginationValue}.`,
+  },
+  limitTooLarge: {
+    en: `The 'limit' parameter must not exceed ${maxLimit}.`,
+    pt: `O parâmetro 'limit' não pode exceder ${maxLimit}.`,
+    es: `El parámetro 'limit' no puede superar ${maxLimit}.`,
+  },
+  offsetTooLarge: {
+    en: "The pagination offset (page * limit) is too large. With this limit, page must not exceed ${maxPage}.",
+    pt: "O deslocamento da paginação (page * limit) é muito grande. Com este limite, page não pode exceder ${maxPage}.",
+    es: "El desplazamiento de paginación (page * limit) es demasiado grande. Con este límite, page no puede superar ${maxPage}.",
   },
   invalidValue: {
     en: "The ${key} provided is incorrect or does not exist in the database. Try:",
@@ -216,12 +234,24 @@ const parsePagination = (pageParam, limitParam, lang) => {
   const page = pageParam ? Number.parseInt(pageParam, 10) : defaultPage;
   const limit = limitParam ? Number.parseInt(limitParam, 10) : defaultLimit;
 
+  if (page > maxPaginationValue) {
+    return validationError(errorMessages.pageTooLarge[lang]);
+  }
   if (pageParam && (!Number.isInteger(page) || page < 0)) {
     return validationError(errorMessages.invalidPage[lang]);
   }
 
+  if (limit > maxLimit) {
+    return validationError(errorMessages.limitTooLarge[lang]);
+  }
   if (limitParam && (!Number.isInteger(limit) || limit < 1)) {
     return validationError(errorMessages.invalidLimit[lang]);
+  }
+
+  if (!Number.isSafeInteger(page * limit)) {
+    return validationError(errorMessages.offsetTooLarge[lang].replace(
+      "${maxPage}", String(Math.floor(maxPaginationValue / limit)),
+    ));
   }
 
   return { page, limit };
@@ -448,13 +478,11 @@ const hydrateExercise = (exercise, translations) => {
   return hydrated;
 };
 
-// Returns the slug key for a localized value within a translation collection, or null.
-const findSlugByLocalizedValue = (translations, collection, value, lang) => {
-  for (const [slug, t] of Object.entries(translations[collection] || {})) {
-    if (t[lang] === value) return slug;
-  }
-  return null;
-};
+// Different stored slugs can share a display label in the selected language.
+const findSlugsByLocalizedValue = (translations, collection, value, lang) =>
+  Object.entries(translations[collection] || {})
+    .filter(([, translation]) => translation[lang] === value)
+    .map(([slug]) => slug);
 
 // Returns all localized display values for a collection in the requested language.
 const getLocalizedOptions = (translations, collection, lang) =>
@@ -469,12 +497,13 @@ module.exports = {
   errorMessages,
   extractValues,
   filterableFields,
-  findSlugByLocalizedValue,
+  findSlugsByLocalizedValue,
   fuseOptions,
   getErrorLanguage,
   getHeaderLanguage,
   getLocalizedOptions,
   hydrateExercise,
+  maxLimit,
   parseFields,
   parseLanguage,
   parsePagination,

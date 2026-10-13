@@ -24,6 +24,8 @@ const buildTranslations = () => ({
 });
 
 const createFindStub = (exercise) => ({
+  sort() { return this; },
+  select() { return this; },
   skip() { return this; },
   limit() { return this; },
   async lean() { return [exercise]; },

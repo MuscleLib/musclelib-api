@@ -25,12 +25,21 @@ jest.mock("../../api/Translation", () => collection => ({
 describe("Spanish exercise vocabulary", () => {
   const app = express();
   app.use("/api/exercises", routes);
+  let exercises;
+  const createQuery = documents => ({
+    sort() { return this; },
+    select() { return this; },
+    skip() { return this; },
+    limit() { return this; },
+    lean: async () => documents,
+  });
   beforeEach(() => {
     resetCache();
-    jest.spyOn(Exercise, "find").mockReturnValue({ lean: async () => [
+    exercises = [
       { id: "Test_Barbell", name: { en: "Squat", es: "Sentadilla con barra" }, equipment: "barbell", category: "strength", primaryMuscles: ["abductors"], secondaryMuscles: ["traps", "calves", "lats"] },
       { id: "Test_Dumbbell", name: { en: "Dumbbell Squat", es: "Sentadilla con mancuerna" }, equipment: "dumbbell", category: "strength", primaryMuscles: [], secondaryMuscles: [] },
-    ] });
+    ];
+    jest.spyOn(Exercise, "find").mockReturnValue(createQuery(exercises));
   });
   afterEach(() => jest.restoreAllMocks());
 
@@ -50,8 +59,10 @@ describe("Spanish exercise vocabulary", () => {
     expect(filters.body.category).toEqual(["fuerza"]);
     expect(filters.body.primaryMuscles).toEqual(expect.arrayContaining(["abductores", "trapecios"]));
     for (const [value, id] of [["barra", "Test_Barbell"], ["mancuerna", "Test_Dumbbell"]]) {
+      Exercise.find.mockReturnValueOnce(createQuery(exercises.filter(exercise => exercise.id === id)));
       const response = await request(app).get(`/api/exercises?lang=es&equipment=${value}`);
       expect(response.status).toBe(200);
+      expect(Exercise.find).toHaveBeenLastCalledWith({ equipment: { $in: [value === "barra" ? "barbell" : "dumbbell"] } });
       expect(response.body.map(exercise => exercise.id)).toEqual([id]);
     }
   });
