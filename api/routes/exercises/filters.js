@@ -25,6 +25,7 @@ module.exports = async (req, res) => {
   try {
     const force = await getTranslationValues("force_translations", lang);
     const level = await getTranslationValues("level_translations", lang);
+    const mechanic = await getTranslationValues("mechanic_translations", lang);
     const category = await getTranslationValues("category_translations", lang);
     const equipment = await getTranslationValues("equipment_translations", lang);
     const muscles = await getTranslationValues("muscle_translations", lang);
@@ -32,6 +33,7 @@ module.exports = async (req, res) => {
     res.json({
       force,
       level,
+      mechanic,
       category,
       equipment,
       primaryMuscles: muscles,

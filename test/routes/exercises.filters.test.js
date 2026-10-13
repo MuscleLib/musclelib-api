@@ -22,6 +22,10 @@ describe("GET /api/exercises/filters", () => {
   const seedTranslationStubs = ({
     force = [{ translations: { en: "push", pt: "empurrar" } }],
     level = [{ translations: { en: "beginner", pt: "iniciante" } }],
+    mechanic = [
+      { key: "isolation", translations: { en: "isolation", pt: "isolamento", es: "aislamiento" } },
+      { key: "compound", translations: { en: "compound", pt: "composto", es: "compuesto" } },
+    ],
     category = [{ translations: { en: "strength", pt: "forca" } }],
     equipment = [{ translations: { en: "barbell", pt: "barra" } }],
     muscles = [
@@ -34,6 +38,9 @@ describe("GET /api/exercises/filters", () => {
     }));
     ensureTranslationModel("level_translations").find = jest.fn(() => ({
       lean: jest.fn().mockResolvedValue(level),
+    }));
+    ensureTranslationModel("mechanic_translations").find = jest.fn(() => ({
+      lean: jest.fn().mockResolvedValue(mechanic),
     }));
     ensureTranslationModel("category_translations").find = jest.fn(() => ({
       lean: jest.fn().mockResolvedValue(category),
@@ -59,6 +66,7 @@ describe("GET /api/exercises/filters", () => {
     expect(response.body).toMatchObject({
       force: ["push"],
       level: ["beginner"],
+      mechanic: ["compound", "isolation"],
       category: ["strength"],
       equipment: ["barbell"],
       primaryMuscles: expect.any(Array),
@@ -73,11 +81,28 @@ describe("GET /api/exercises/filters", () => {
     expect(response.body).toMatchObject({
       force: ["empurrar"],
       level: ["iniciante"],
+      mechanic: ["composto", "isolamento"],
       category: ["forca"],
       equipment: ["barra"],
       primaryMuscles: ["peito", "triceps"],
       secondaryMuscles: ["peito", "triceps"],
     });
+  });
+
+  it("returns the localized mechanic values accepted by the list filter in Spanish", async () => {
+    seedTranslationStubs();
+    const response = await request(app).get("/api/exercises/filters?lang=es");
+    expect(response.status).toBe(200);
+    expect(Object.keys(response.body)).toEqual([
+      "force",
+      "level",
+      "mechanic",
+      "category",
+      "equipment",
+      "primaryMuscles",
+      "secondaryMuscles",
+    ]);
+    expect(response.body.mechanic).toEqual(["aislamiento", "compuesto"]);
   });
 
   it("defaults to English when lang is not provided", async () => {
