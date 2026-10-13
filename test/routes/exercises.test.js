@@ -114,6 +114,27 @@ describe("exercise routes", () => {
     expect(response.body.message).toBe(message);
   });
 
+  it("returns a stable error without exposing database details", async () => {
+    getTranslations.mockResolvedValue(buildTranslations());
+    Exercise.find = jest.fn(() => ({
+      sort() { return this; },
+      skip() { return this; },
+      limit() { return this; },
+      async lean() { throw new Error("mongodb://user:secret@internal-host"); },
+    }));
+    const errorLog = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await request(app).get("/api/exercises");
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ message: "Error fetching exercises." });
+    expect(JSON.stringify(response.body)).not.toContain("secret");
+    expect(errorLog).toHaveBeenCalledWith(
+      "[exercise-list] Failed to fetch exercises",
+      { name: "Error", code: undefined },
+    );
+  });
+
   it("filters by force", async () => {
     seedStubs();
     const response = await request(app).get("/api/exercises?force=push");
