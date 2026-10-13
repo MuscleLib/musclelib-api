@@ -169,6 +169,14 @@ const fuseOptions = {
 
 const defaultImageFormatter = (exercise) => exercise.images;
 const sourceExerciseCache = new Map();
+const logInternalError = (context, err) => {
+  // Do not log exception messages, which can contain connection strings or query data.
+  console.error(context, {
+    name: typeof err?.name === "string" ? err.name : "Error",
+    code: typeof err?.code === "string" || typeof err?.code === "number" ? err.code : undefined,
+  });
+};
+
 const formatValidFields = () => `${validFields.join(", ")}.`;
 const formatValidListParameters = () => `${validListParameters.join(", ")}.`;
 const validationError = (message, extraBody = {}) => ({
@@ -277,8 +285,7 @@ const parsePagination = (pageParam, limitParam, lang) => {
     return validationError(errorMessages.invalideParamettersPageLimit[lang]);
   }
 
-  // A repeated parameter arrives as an array, which parseInt would silently
-  // reduce to its first value ("1,2" -> 1).
+  // Repeated parameters are arrays; reject them instead of silently choosing one.
   if (pageParam !== undefined && typeof pageParam !== "string") {
     return validationError(errorMessages.invalidPage[lang]);
   }
@@ -286,21 +293,29 @@ const parsePagination = (pageParam, limitParam, lang) => {
     return validationError(errorMessages.invalidLimit[lang]);
   }
 
-  const page = pageParam ?Number.parseInt(pageParam, 10) : defaultPage;
-  const limit = limitParam ? Number.parseInt(limitParam, 10) : defaultLimit;
-
-  if (page > maxPaginationValue) {
-    return validationError(errorMessages.pageTooLarge[lang]);
-  }
-  if (pageParam && (!Number.isInteger(page) || page < 0)) {
+  // Accept decimal digit strings only. parseInt alone accepts values like "10abc".
+  if (pageParam !== undefined && !/^\d+$/.test(pageParam)) {
     return validationError(errorMessages.invalidPage[lang]);
   }
+  if (limitParam !== undefined && !/^\d+$/.test(limitParam)) {
+    return validationError(errorMessages.invalidLimit[lang]);
+  }
 
+  const page = pageParam === undefined ? defaultPage : Number(pageParam);
+  const limit = limitParam === undefined ? defaultLimit : Number(limitParam);
+
+  if (!Number.isSafeInteger(page) || page < 0) {
+    return validationError(
+      page > maxPaginationValue
+        ? errorMessages.pageTooLarge[lang]
+        : errorMessages.invalidPage[lang],
+    );
+  }
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    return validationError(errorMessages.invalidLimit[lang]);
+  }
   if (limit > maxLimit) {
     return validationError(errorMessages.limitTooLarge[lang]);
-  }
-  if (limitParam && (!Number.isInteger(limit) || limit < 1)) {
-    return validationError(errorMessages.invalidLimit[lang]);
   }
 
   if (!Number.isSafeInteger(page * limit)) {
@@ -560,6 +575,7 @@ module.exports = {
   getLocalizedOptions,
   hydrateExercise,
   maxLimit,
+  logInternalError,
   parseFields,
   parseLanguage,
   parseListParameters,

@@ -13,6 +13,7 @@ const {
   parseListParameters,
   parsePagination,
   serializeExercise,
+  logInternalError,
 } = require("./shared");
 
 // Maps each filterable field to its translation collection.
@@ -110,9 +111,9 @@ module.exports = async (req, res) => {
       ),
     );
   } catch (err) {
+    logInternalError("[exercise-list] Failed to fetch exercises", err);
     res.status(500).json({
       message: errorMessages.fetchError[lang],
-      error: err.message,
     });
   }
 };

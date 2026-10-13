@@ -1,7 +1,7 @@
 const Translation = require("../../Translation");
 const { localizeTranslation } = require("../../spanishVocabulary");
 
-const { errorMessages, parseLanguage } = require("./shared");
+const { errorMessages, logInternalError, parseLanguage } = require("./shared");
 
 const formatTranslations = (translations, lang, collection) =>
   [...new Set(translations.map((translation) => localizeTranslation(collection, translation)[lang]).filter(Boolean))].sort(
@@ -40,9 +40,9 @@ module.exports = async (req, res) => {
       secondaryMuscles: muscles,
     });
   } catch (err) {
+    logInternalError("[exercise-filters] Failed to fetch filters", err);
     res.status(500).json({
       message: errorMessages.fetchError[lang],
-      error: err.message,
     });
   }
 };

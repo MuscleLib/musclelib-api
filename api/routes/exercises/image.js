@@ -3,7 +3,7 @@ const path = require("path");
 
 const Fuse = require("fuse.js");
 const Exercise = require("../../Exercise");
-const { errorMessages, getHeaderLanguage, supportedLanguages } = require("./shared");
+const { errorMessages, getHeaderLanguage, logInternalError, supportedLanguages } = require("./shared");
 
 module.exports = async (req, res) => {
   const { exerciseName, imageIndex } = req.params;
@@ -44,10 +44,9 @@ module.exports = async (req, res) => {
 
     res.sendFile(imagePath);
   } catch (err) {
-    console.error(`${errorMessages.fetchError[lang]}: ${err.message}`);
+    logInternalError("[exercise-image] Failed to fetch image", err);
     res.status(500).json({
       message: errorMessages.fetchError[lang],
-      error: err.message,
     });
   }
 };

@@ -61,6 +61,8 @@ GET /api/exercises
 
 Returns paginated exercises matching the applied filters.
 
+Pagination defaults to `page=0` and `limit=50`. Both parameters must be non-negative/positive integer strings respectively, and `limit` is capped at **100**. Invalid, repeated, non-integer, or oversized values return HTTP `400`. Internal failures return a stable localized error message; diagnostic logs include only safe error metadata, not raw exception messages.
+
 Filters and pagination run in MongoDB; only the requested page is loaded for localization. Results are ordered by ascending MongoDB `_id` before pagination. Pages are zero-indexed, and an empty page (including one past the last matching exercise) returns the localized 404 response shown below. With `fields`, MongoDB fetches the requested fields plus `_id`, `id`, `name`, and `images` required for serialization and source-data recovery.
 
 **Query Parameters:**

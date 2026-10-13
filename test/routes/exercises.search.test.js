@@ -184,8 +184,9 @@ describe("exercise search route", () => {
     const failed = await request(app).get("/api/exercises/search?query=Bench&lang=es");
     expect(failed.status).toBe(500);
     expect(failed.body).toEqual({
-      message: "Error al buscar ejercicios.", error: "Database unavailable",
+      message: "Error al buscar ejercicios.",
     });
+    expect(JSON.stringify(failed.body)).not.toContain("Database unavailable");
     const recovered = await request(app).get("/api/exercises/search?query=Bench");
     expect(recovered.status).toBe(200);
     expect(recovered.body.exercises[0].name).toBe("Bench Press");
